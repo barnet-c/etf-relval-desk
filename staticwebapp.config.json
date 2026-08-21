@@ -1,0 +1,11 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/static/*", "/plotted_datasets/*", "*.{css,js,png,jpg,jpeg,gif,svg,ico,json,txt,map,csv}"]
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".csv": "text/csv",
+    ".svg": "image/svg+xml"
+  }
+}

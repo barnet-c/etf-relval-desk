@@ -1,0 +1,15 @@
+{
+  "short_name": "ETF RelVal",
+  "name": "ETF Relative Value Desk",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#050609",
+  "background_color": "#050609"
+}

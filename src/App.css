@@ -1,0 +1,20 @@
+.App {
+  text-align: center;
+}
+
+/* keep Plotly's chrome consistent with the obsidian theme */
+.plot-frame .modebar {
+  background: transparent !important;
+}
+
+.plot-frame .modebar-btn path {
+  fill: rgba(155, 165, 182, 0.75);
+}
+
+.plot-frame .modebar-btn:hover path {
+  fill: var(--mint);
+}
+
+.plot-frame .js-plotly-plot .plotly .main-svg {
+  background: transparent !important;
+}
