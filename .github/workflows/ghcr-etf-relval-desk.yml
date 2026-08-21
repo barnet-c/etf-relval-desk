@@ -6,7 +6,7 @@ name: Publish etf-relval-desk image to GHCR
 
 on:
   push:
-    branches: [main]
+    branches: [main, containerize-aca]
   workflow_dispatch:
 
 jobs:
