@@ -1,0 +1,35 @@
+name: Publish etf-relval-desk image to GHCR
+
+# Builds the container (CRA -> nginx) and pushes it to
+#   ghcr.io/barnet-c/etf-relval-desk:latest
+# Azure Container Apps pulls from there. Auth uses the built-in GITHUB_TOKEN.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/barnet-c/etf-relval-desk:latest
+            ghcr.io/barnet-c/etf-relval-desk:${{ github.sha }}
