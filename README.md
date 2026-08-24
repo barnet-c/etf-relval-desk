@@ -76,6 +76,115 @@ bitcoin's.
 
 ---
 
+## Methodology — how each coordinate is calculated
+
+Every metric is derived from **free daily OHLCV** (open, high, low, close,
+volume) pulled from the public Yahoo Finance chart endpoint
+(`query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=2y&interval=1d`).
+No login, paid feed or third-party library is involved. All symbols are aligned
+onto a **common trading calendar** (only sessions where every fund traded), and
+the benchmark is forward-filled onto that calendar.
+
+**Symbols pulled:** the six ETFs plus two benchmarks — `BTC-USD` (spot bitcoin)
+for the five bitcoin funds and `GC=F` (COMEX gold futures) for IAU.
+
+### Returns
+
+Everything is built on daily **log returns**:
+
+```
+r_t = ln(close_t / close_{t-1})     fund
+b_t = ln(bench_t / bench_{t-1})     benchmark (BTC or gold)
+```
+
+### Basket risk (tracking error) — Cr&Re x-axis
+
+Computed in three steps:
+
+1. **Rolling beta** — a 60-day trailing OLS regression of the fund's returns on
+   the benchmark's returns (covariance ÷ variance):
+
+   ```
+   beta_t = Cov(r, b) / Var(b)      over the last 60 sessions
+   ```
+
+2. **Residual return** — strip out the benchmark move so only the
+   fund-specific component (the true tracking error) remains:
+
+   ```
+   resid_t = r_t − beta_t · b_t
+   ```
+
+3. **Annualised rolling volatility** — the 20-day standard deviation of those
+   residuals, annualised and in percent:
+
+   ```
+   TrackingError_t = stdev(resid over last 20 sessions) · √252 · 100
+   ```
+
+This is what an authorised participant warehouses: they are hedged on the
+underlying asset, so their risk is the fund's drift *away* from that asset.
+
+### Arb yield (dislocation) — Cr&Re y-axis
+
+The 5-day cumulative residual, in basis points — a price-based proxy for the
+premium/discount to fair value:
+
+```
+Dislocation_t = Σ(resid over last 5 sessions) · 10,000
+```
+
+Positive → drifted rich (redeem); negative → drifted cheap (create).
+
+### Liquidity risk (Amihud) — Liquidity x-axis
+
+The Amihud (2002) illiquidity ratio — price impact per million dollars traded —
+averaged over 21 sessions in log10 space:
+
+```
+illiq_t     = |r_t| / (close_t · volume_t / 1e6)
+Illiquidity = log10( mean(illiq over last 21 sessions) )
+```
+
+### Spread capture (Corwin–Schultz) — Liquidity y-axis
+
+The Corwin & Schultz (2012) high/low bid-ask spread estimator, which recovers a
+spread from just the daily high and low of consecutive sessions (no tick data):
+
+```
+β = ln(H_{t-1}/L_{t-1})² + ln(H_t/L_t)²
+γ = ln( max(H_{t-1},H_t) / min(L_{t-1},L_t) )²
+α = (√(2β) − √β) / (3 − 2√2) − √( γ / (3 − 2√2) )
+spread_t = 2 · (e^α − 1) / (1 + e^α)          → × 10,000 for bps
+```
+
+The daily estimate is clamped at zero by construction, so it is averaged over 21
+sessions to recover a usable "typical" spread instead of an artificial floor.
+
+### Normalisation (z-scoring)
+
+Each plotted axis is standardised across **all six funds and all sessions** so
+the funds are directly comparable despite very different absolute vol and volume:
+
+```
+z = (value − mean_across_panel) / stdev_across_panel
+```
+
+A point at x = +2 therefore means "two standard deviations above the two-year
+cross-fund average". The first 20 sessions are dropped so no rolling window is
+half-populated.
+
+### Caveats
+
+- The premium/discount uses **price, not official NAV** — Yahoo does not publish
+  intraday iNAV, so the dislocation is a beta-residual proxy (standard in
+  academic literature, but not the issuer's official iNAV).
+- The spread is a **high/low estimator**, not quoted top-of-book. Swapping in a
+  TAQ/Bloomberg feed only touches `corwin_schultz` in the pipeline; the rest of
+  the app is unchanged.
+
+---
+
 ## Data pipeline
 
 `scripts/build_datasets.py` pulls daily OHLCV for the six funds plus their two
