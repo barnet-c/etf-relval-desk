@@ -1,216 +1,136 @@
-# ETF Relative Value Desk
+# Gold ETF Desk
 
-A relative value desk for the six largest spot **bitcoin** and **gold** ETFs —
-**GBTC · BITB · FBTC · IAU · IBIT · ARKB**.
+A relative value desk for the **gold ETF universe** &mdash; the 38 funds listed
+by [etf.com/topics/gold](https://www.etf.com/topics/gold) from GLD through NUGY,
+covering bullion trusts, miner equity, leveraged and inverse products, and
+option-income strategies.
 
-It is a recreation of the [OpenEXA relative value desk](https://yellow-grass-043d0571e.7.azurestaticapps.net/)
-(which plots municipal and corporate bonds) rebuilt around exchange-traded funds:
-same four-view Plotly desk, same obsidian theme and dataset switcher, with the
-bond panels replaced by two ETF arbitrage panels derived from real market data.
+Recreated from the [OpenEXA relative value desk](https://yellow-grass-043d0571e.7.azurestaticapps.net/):
+the same Plotly desk and obsidian theme, rebuilt around a cohort that is far
+more heterogeneous than the bonds it originally plotted.
 
 | | |
 |---|---|
 | **Framework** | React 18 + `react-scripts` 5 |
-| **Charting** | `plotly.js` via `react-plotly.js` |
-| **Data loading** | `d3-dsv` (CSV fetched from `public/plotted_datasets`) |
-| **Deployment** | Azure Static Web Apps |
+| **Charting** | `plotly.js` via `react-plotly.js` (WebGL scatter) |
+| **Data loading** | `d3-dsv` (CSV from `public/plotted_datasets`) |
+| **Data pipeline** | Python standard library only |
+| **Deployment** | Azure Static Web Apps, or any static host |
 
 ---
 
-## The desk
+## The universe
 
-The dataset selector in the header switches between four views, mirroring the
-original app's `Cr&Re Arb 2D / 3D` and `Liquidity Arb 2D / 3D`:
+The source page states **40 US-listed gold ETFs**. NUGY is the 38th; the two
+rows below it are inverse Deutsche Bank notes under $1.2m. Of those 38, **GLDY**
+launched too recently to support any rolling statistic, leaving **37 funds** and
+**12,022 fund-sessions** on the desk.
 
-| View | Panel | x — Risk | y — Yield | z — Price |
-|---|---|---|---|---|
-| Cr&Re Arb 2D | creation / redemption | basket risk | arb yield | — |
-| Cr&Re Arb 3D | creation / redemption | basket risk | arb yield | price |
-| Liquidity Arb 2D | liquidity | liquidity risk | spread capture | — |
-| Liquidity Arb 3D | liquidity | liquidity risk | spread capture | price |
+They are not comparable instruments, so every point is coloured by structure:
 
-Every fund gets its own Plotly trace, so the legend doubles as a filter — click a
-ticker to mute it, double-click to isolate it. Hovering a point shows the fund,
-the session date and the underlying metrics behind that point.
+| Structure | n | Median beta to gold | Median round trip |
+|---|---|---|---|
+| Physical gold | 9 | 0.86 | 16 bps |
+| Gold miners | 8 | 1.80 | 122 bps |
+| Leveraged gold | 3 | 1.74 | 74 bps |
+| Leveraged miners | 3 | 3.76 | 129 bps |
+| Inverse | 5 | &minus;3.48 | 148 bps |
+| Option income | 9 | 0.90 | 196 bps |
 
-### Panel 1 — creation / redemption arbitrage
+Those betas are a validity check on the whole pipeline: leveraged miners print
+near 2&times; the miner beta, and the inverse cohort prints near its stated
+negative multiple. Nothing tells the desk what leverage a fund carries &mdash;
+it is recovered from price.
 
-Models the risk an authorised participant carries when arbitraging a fund
-against its creation basket.
-
-- **Basket risk (x)** — 20-day realised volatility of the fund's return
-  *residual* against its underlying asset, annualised, then z-scored across the
-  panel. The residual comes from a 60-day rolling OLS beta of the fund on its
-  benchmark (`BTC-USD` for the bitcoin funds, `GC=F` for IAU), so it isolates
-  fund-specific tracking risk from the move in the underlying.
-- **Arb yield (y)** — the 5-day cumulative residual in basis points, z-scored.
-  Positive means the fund has drifted rich to fair value (redeem), negative
-  means it has drifted cheap (create).
-- **Price (z)** — closing price.
-
-### Panel 2 — liquidity arbitrage
-
-Models where a fund sits on the liquidity/spread frontier.
-
-- **Liquidity risk (x)** — the Amihud illiquidity ratio, `|return| / dollar
-  volume`, averaged over 21 sessions, in log10 and z-scored. Higher means each
-  dollar traded moves the price more.
-- **Spread capture (y)** — the Corwin–Schultz (2012) high/low bid-ask spread
-  estimator in basis points, averaged over 21 sessions and z-scored. The daily
-  estimator is clamped at zero by construction, so the rolling average is used
-  to recover a usable "typical spread" rather than a floor.
-- **Price (z)** — closing price.
-
-Both panels also carry a `Classifications` column — the risk quartile and yield
-quartile of each point as `q-q`, retained from the source dataset's schema.
-
-### What the data shows
-
-The panels reproduce the liquidity ordering you would expect from these funds:
-IBIT sits alone at the low-liquidity-risk end on roughly **$2.4bn** of average
-daily value traded, IAU posts the tightest spreads of the six (~15bps against
-~41bps for the bitcoin funds), and BITB and ARKB — the smallest of the cohort —
-carry the highest liquidity risk. In the creation/redemption panel IAU clusters
-tightly at low basket risk, since gold's tracking error is a fraction of
-bitcoin's.
+The strip above the chart filters by structure: click to mute, double-click to
+isolate.
 
 ---
 
-## Methodology — how each coordinate is calculated
+## The panels
 
-Every metric is derived from **free daily OHLCV** (open, high, low, close,
-volume) pulled from the public Yahoo Finance chart endpoint
-(`query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=2y&interval=1d`).
-No login, paid feed or third-party library is involved. All symbols are aligned
-onto a **common trading calendar** (only sessions where every fund traded), and
-the benchmark is forward-filled onto that calendar.
+| Panel | x | y | z |
+|---|---|---|---|
+| Cost of Ownership | round-trip cost (bps, log) | realised holding drag (bps/yr, log-modulus) | &mdash; |
+| Liquidity | daily turnover ($mm, log) | estimated spread (bps, log) | &mdash; |
+| Exposure | beta to gold | realised volatility (% ann, log) | &mdash; |
+| Three-way 3D | beta to gold | turnover (log) | round trip (log) |
 
-**Symbols pulled:** the six ETFs plus two benchmarks — `BTC-USD` (spot bitcoin)
-for the five bitcoin funds and `GC=F` (COMEX gold futures) for IAU.
+### Real units, not z-scores
 
-### Returns
+An earlier version standardised every axis. That fails on this cohort: a
+z-score reports a 3&times; product as "2.4 standard deviations above average"
+when the useful fact is that it is **3&times;**. Every axis here is in the unit
+it was measured in, and where a span crosses orders of magnitude the axis is
+logarithmic rather than the data being squashed. **Every tick label is a real
+number you could quote.**
 
-Everything is built on daily **log returns**:
+Holding drag runs from &minus;3,000 to &#43;18,000 bps/yr and takes both signs,
+so it uses a **log-modulus** scale, `sign(x) &times; log10(1 + |x|)`, with ticks
+written back in real bps/yr.
 
-```
-r_t = ln(close_t / close_{t-1})     fund
-b_t = ln(bench_t / bench_{t-1})     benchmark (BTC or gold)
-```
+### Palette
 
-### Basket risk (tracking error) — Cr&Re x-axis
+Deliberately neutral &mdash; champagne, dusty blue, bronze, dusty lavender,
+slate and sand. No green and no red anywhere, so no point on the chart reads as
+an implied verdict. A unit test enforces this by hue: any colour saturated
+enough to signal must not fall in the red or green sector.
 
-Computed in three steps:
+---
 
-1. **Rolling beta** — a 60-day trailing OLS regression of the fund's returns on
-   the benchmark's returns (covariance ÷ variance):
+## Methodology
 
-   ```
-   beta_t = Cov(r, b) / Var(b)      over the last 60 sessions
-   ```
+The **Methodology** tab explains every formula in plain English alongside the
+maths. In short:
 
-2. **Residual return** — strip out the benchmark move so only the
-   fund-specific component (the true tracking error) remains:
+| # | Quantity | Formula |
+|---|---|---|
+| 1 | Log return | `r_t = ln(close_t / close_{t-1})` |
+| 2 | Bid&ndash;ask spread | Corwin&ndash;Schultz (2012) high/low estimator, 21d mean |
+| 3 | Round-trip cost | `spread + median(Amihud) x $1mm x 10,000` |
+| 4 | Realised holding drag | `-mean(r - beta.b over 126d) x 252 x 10,000` |
+| 5 | Daily turnover | `mean(close x volume over 21d) / 1e6` |
+| 6 | Beta to gold | `Cov(r, gold) / Var(gold)` over 60 sessions |
 
-   ```
-   resid_t = r_t − beta_t · b_t
-   ```
+Two choices worth flagging:
 
-3. **Annualised rolling volatility** — the 20-day standard deviation of those
-   residuals, annualised and in percent:
+- **Drag is measured, not quoted.** Rather than repeat the stated expense ratio,
+  the desk fits what the fund actually cost its holder &mdash; which captures
+  fees, roll, tracking slippage and leveraged compounding decay together.
+- **Amihud uses a median, not a mean.** Turnover sits in its denominator, so one
+  near-dead session sends an average to infinity. Using the mean pinned five of
+  the thinnest funds against the impact cap; the median removed the artefact.
 
-   ```
-   TrackingError_t = stdev(resid over last 20 sessions) · √252 · 100
-   ```
-
-This is what an authorised participant warehouses: they are hedged on the
-underlying asset, so their risk is the fund's drift *away* from that asset.
-
-### Arb yield (dislocation) — Cr&Re y-axis
-
-The 5-day cumulative residual, in basis points — a price-based proxy for the
-premium/discount to fair value:
-
-```
-Dislocation_t = Σ(resid over last 5 sessions) · 10,000
-```
-
-Positive → drifted rich (redeem); negative → drifted cheap (create).
-
-### Liquidity risk (Amihud) — Liquidity x-axis
-
-The Amihud (2002) illiquidity ratio — price impact per million dollars traded —
-averaged over 21 sessions in log10 space:
-
-```
-illiq_t     = |r_t| / (close_t · volume_t / 1e6)
-Illiquidity = log10( mean(illiq over last 21 sessions) )
-```
-
-### Spread capture (Corwin–Schultz) — Liquidity y-axis
-
-The Corwin & Schultz (2012) high/low bid-ask spread estimator, which recovers a
-spread from just the daily high and low of consecutive sessions (no tick data):
-
-```
-β = ln(H_{t-1}/L_{t-1})² + ln(H_t/L_t)²
-γ = ln( max(H_{t-1},H_t) / min(L_{t-1},L_t) )²
-α = (√(2β) − √β) / (3 − 2√2) − √( γ / (3 − 2√2) )
-spread_t = 2 · (e^α − 1) / (1 + e^α)          → × 10,000 for bps
-```
-
-The daily estimate is clamped at zero by construction, so it is averaged over 21
-sessions to recover a usable "typical" spread instead of an artificial floor.
-
-### Normalisation (z-scoring)
-
-Each plotted axis is standardised across **all six funds and all sessions** so
-the funds are directly comparable despite very different absolute vol and volume:
-
-```
-z = (value − mean_across_panel) / stdev_across_panel
-```
-
-A point at x = +2 therefore means "two standard deviations above the two-year
-cross-fund average". The first 20 sessions are dropped so no rolling window is
-half-populated.
-
-### Caveats
-
-- The premium/discount uses **price, not official NAV** — Yahoo does not publish
-  intraday iNAV, so the dislocation is a beta-residual proxy (standard in
-  academic literature, but not the issuer's official iNAV).
-- The spread is a **high/low estimator**, not quoted top-of-book. Swapping in a
-  TAQ/Bloomberg feed only touches `corwin_schultz` in the pipeline; the rest of
-  the app is unchanged.
+Fund assets and stated fees are quoted from etf.com and shown in tooltips as
+context. **They are never plotted** &mdash; every axis is derived from price.
 
 ---
 
 ## Data pipeline
 
-`scripts/build_datasets.py` pulls daily OHLCV for the six funds plus their two
-benchmark assets from the public Yahoo Finance chart endpoint, derives the
-metrics above, and writes the two CSVs the app reads. It uses the Python
-standard library only — no third-party packages.
+`scripts/build_datasets.py` pulls daily OHLCV for the cohort plus two benchmarks
+(`GC=F` for gold-linked funds, `GDX` for miner-linked) from the public Yahoo
+Finance chart endpoint, and writes the CSVs the app reads. Standard library only.
 
 ```bash
 python scripts/build_datasets.py   # or: npm run data
 ```
 
-It writes:
-
 ```
-public/plotted_datasets/etf_crre_arb.csv
-public/plotted_datasets/etf_liquidity_arb.csv
+public/plotted_datasets/etf_cost.csv        cost of ownership
+public/plotted_datasets/etf_liquidity.csv   liquidity
+public/plotted_datasets/etf_exposure.csv    exposure quality
+public/plotted_datasets/etf_latest.csv      one row per fund, latest session
 ```
 
-Each file holds one row per fund per session — currently **2,886 rows**
-(6 funds × 481 sessions). The first 20 sessions of the window are dropped so
-every rolling statistic is fully populated before the first plotted point.
+Each fund is measured on **its own history**, not a cohort-wide common calendar
+&mdash; the newest fund has about nine months, and intersecting on it would have
+discarded more than half of GLD's history for no gain. The script prints
+real-unit percentiles and per-family medians on every run; the plot axis ranges
+in [`src/datasets.js`](src/datasets.js) are sized from that output.
 
-Tunable constants live at the top of the script (`RANGE`, `BETA_WINDOW`,
-`TE_WINDOW`, `DISLOCATION_LAG`, `ILLIQ_WINDOW`, `WARMUP`). Adding or swapping a
-fund is a matter of editing the `ETFS` dictionary there and the matching entry
-in [`src/etfUniverse.js`](src/etfUniverse.js).
+The roster lives in [`scripts/gold_roster.py`](scripts/gold_roster.py) with its
+source and capture date recorded.
 
 ---
 
@@ -219,34 +139,40 @@ in [`src/etfUniverse.js`](src/etfUniverse.js).
 ```bash
 npm install
 npm start      # dev server on http://localhost:3000
-npm test       # unit tests
+npm test       # 12 unit tests
 npm run build  # production bundle in build/
 ```
+
+The tests cover more than wiring: they assert the palette contains no saturated
+green or red, that no axis is a z-score, and that every log axis gives its
+tickvals in **data** units. That last one is a real trap &mdash; Plotly reads a
+log axis `range` in log10 units but `tickvals` in data units, and getting it
+backwards renders a single mislabelled tick with no error.
 
 ## Project layout
 
 ```
-scripts/build_datasets.py   market data -> the two CSV panels
+scripts/gold_roster.py      the 38-fund universe, with source and date
+scripts/build_datasets.py   market data -> the CSV panels
 public/plotted_datasets/    generated datasets, served statically
-src/App.js                  header, dataset selector, view switching
-src/RelValPlot.js           builds the Plotly traces + dark layout
-src/datasets.js             the two panel definitions (axes, hover fields)
-src/etfUniverse.js          the six funds, their metadata and colours
+src/App.js                  header, tabs, structure filter, view switching
+src/AboutPage.js            the Methodology page
+src/RelValPlot.js           Plotly traces, log axes, neutral 3D styling
+src/datasets.js             panel definitions (axes, ranges, tick maps)
+src/etfUniverse.js          the six structures and their colours
 src/EtfData.js              CSV column-access helpers
 ```
 
-## Deployment
+## Limitations
 
-[`.github/workflows/azure-static-web-apps.yml`](.github/workflows/azure-static-web-apps.yml)
-builds and deploys to Azure Static Web Apps on push to `main`. It expects an
-`AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret; add it (or delete the
-workflow) before enabling Actions. The build is a plain static bundle, so it
-also deploys as-is to Netlify, Vercel, GitHub Pages or any static host.
-
-## Notes
-
-Market data comes from a public, unauthenticated endpoint and is provided
-as-is. The metrics here are estimators computed from daily OHLCV — the
-premium/discount is a beta-residual proxy rather than official published NAV,
-and the spread is a high/low estimator rather than quoted top-of-book. This is
-a data-visualisation project, not investment advice.
+- **Spreads are estimated, not quoted.** Corwin&ndash;Schultz infers a spread
+  from the daily high and low and reads high on volatile instruments, so the
+  leveraged funds' spreads are likely overstated against the bullion trusts.
+- **Daily bars, not intraday.** This describes structure over months, not when
+  to send an order.
+- **Drag is backward-looking.** Leveraged decay depends on the volatility path
+  and will differ in another regime.
+- **A $1mm clip is large for the smallest funds.** For the thinnest names on the
+  desk that clip is a meaningful share of a day's volume, and the cost shown
+  says so.
+- **Not investment advice**, and not affiliated with any issuer named.

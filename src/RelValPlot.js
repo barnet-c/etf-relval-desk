@@ -3,31 +3,44 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
 import * as d3 from 'd3';
 import EtfData from './EtfData';
-import { ETF_UNIVERSE, ETF_ORDER } from './etfUniverse';
+import { FAMILIES, FAMILY_ORDER, familyColor } from './etfUniverse';
+
+const PAPER = '#08090C';
+const PLOT = '#0C0E13';
 
 const AXIS = {
-  color: '#F0F3F8',
-  gridcolor: 'rgba(255,255,255,0.10)',
+  color: '#E4E1DA',
+  gridcolor: 'rgba(255,255,255,0.065)',
   zerolinecolor: 'rgba(255,255,255,0.30)',
-  linecolor: 'rgba(255,255,255,0.17)',
-  tickfont: { size: 11, color: '#9BA5B6' },
+  zerolinewidth: 1.3,
+  linecolor: 'rgba(255,255,255,0.15)',
+  tickfont: { size: 11.5, color: '#8E8A83' },
+  title: { font: { size: 12.5, color: '#C6C1B8' } },
 };
 
-const PAPER = '#050609';
-const PLOT = '#0A0C12';
+// The WebGL 3D renderer ignores alpha on grid, line and pane colours, so each
+// one has to be an opaque tone mixed against the plot background by hand.
+const AXIS_3D = {
+  gridcolor: 'rgb(42,44,50)',
+  zerolinecolor: 'rgb(74,76,84)',
+  linecolor: 'rgb(48,50,57)',
+  showbackground: true,
+  backgroundcolor: 'rgb(14,16,21)',
+  showspikes: false,
+  tickfont: { size: 10, color: '#8E8A83' },
+  title: { font: { size: 11.5, color: '#C6C1B8' } },
+};
 
-// module-level cache so switching views never refetches the same CSV
+const EMPTY = new Set();
 const csvCache = new Map();
 
 function loadCsv(file) {
-  if (!csvCache.has(file)) {
-    csvCache.set(file, d3.csv(file));
-  }
+  if (!csvCache.has(file)) csvCache.set(file, d3.csv(file));
   return csvCache.get(file);
 }
 
 function formatHover(row, hoverFields) {
-  const head = `<b>${row.Ticker}</b>  ·  ${row.Fund}`;
+  const head = `<b>${row.Ticker}</b>`;
   const body = hoverFields
     .map(({ key, label, prefix = '', suffix = '' }) => {
       const value = row[key];
@@ -40,55 +53,57 @@ function formatHover(row, hoverFields) {
 }
 
 /**
- * Builds one Plotly trace per fund so the legend doubles as a fund filter.
+ * One trace per structural family. With 37 funds a per-ticker legend would be
+ * unreadable and would need 37 distinguishable hues; the family is what
+ * actually explains where a point sits.
  */
-function buildTraces(rows, dataset, mode) {
+function buildTraces(rows, dataset, mode, hidden) {
   const csv = new EtfData(rows, -1);
-  const grouped = csv.group_by('Ticker');
+  const grouped = csv.group_by('Family');
   const { x, y, z } = dataset.axes;
 
-  return ETF_ORDER.filter((ticker) => grouped[ticker]).map((ticker) => {
-    const meta = ETF_UNIVERSE[ticker];
-    const points = grouped[ticker];
+  const num = (r, k) => {
+    const v = parseFloat(r[k]);
+    return Number.isFinite(v) ? v : null;
+  };
 
+  return FAMILY_ORDER.filter((f) => grouped[f] && !hidden.has(f)).map((fam) => {
+    const points = grouped[fam];
     const trace = {
-      x: points.map((r) => parseFloat(r[x.key])),
-      y: points.map((r) => parseFloat(r[y.key])),
-      type: mode === '3d' ? 'scatter3d' : 'scatter',
+      x: points.map((r) => num(r, x.key)),
+      y: points.map((r) => num(r, y.key)),
+      type: mode === '3d' ? 'scatter3d' : 'scattergl',
       mode: 'markers',
-      name: `${ticker} · ${meta.sponsor}`,
+      name: FAMILIES[fam].label,
       hoverinfo: 'text',
       text: points.map((r) => formatHover(r, dataset.hover)),
       marker: {
-        color: meta.color,
+        color: familyColor(fam),
         size: mode === '3d' ? 2.6 : 5,
-        opacity: mode === '3d' ? 0.8 : 0.72,
+        opacity: mode === '3d' ? 0.82 : 0.6,
         line: { width: 0 },
       },
     };
-
-    if (mode === '3d') {
-      trace.z = points.map((r) => parseFloat(r[z.key]));
-    }
-
+    if (mode === '3d') trace.z = points.map((r) => num(r, z.key));
     return trace;
   });
 }
 
+function axisSpec(a, is3d) {
+  const base = is3d ? AXIS_3D : AXIS;
+  const spec = { ...base, title: a.title, range: a.range };
+  if (a.type === 'log') spec.type = 'log';
+  if (a.ticks) {
+    spec.tickmode = 'array';
+    spec.tickvals = a.ticks.tickvals;
+    spec.ticktext = a.ticks.ticktext;
+  }
+  if (a.zeroline) spec.zeroline = true;
+  return spec;
+}
+
 function buildLayout(dataset, mode) {
   const { x, y, z } = dataset.axes;
-
-  const legend = {
-    bgcolor: 'rgba(13,15,22,0.72)',
-    bordercolor: 'rgba(255,255,255,0.10)',
-    borderwidth: 1,
-    font: { color: '#F0F3F8', size: 11 },
-    itemsizing: 'constant',
-    x: mode === '3d' ? 0.01 : 1.01,
-    y: 1,
-    xanchor: 'left',
-    yanchor: 'top',
-  };
 
   const base = {
     autosize: true,
@@ -96,16 +111,16 @@ function buildLayout(dataset, mode) {
     plot_bgcolor: PLOT,
     font: {
       family: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#9BA5B6',
+      color: '#8E8A83',
     },
     hoverlabel: {
-      bgcolor: '#0D0F16',
-      bordercolor: 'rgba(46,230,168,0.45)',
-      font: { color: '#F0F3F8', size: 12 },
+      bgcolor: '#12141A',
+      bordercolor: 'rgba(216,196,154,0.45)',
+      font: { color: '#E4E1DA', size: 12 },
       align: 'left',
     },
-    legend,
-    showlegend: true,
+    // the family strip above the chart is the single key and filter
+    showlegend: false,
   };
 
   if (mode === '3d') {
@@ -114,11 +129,14 @@ function buildLayout(dataset, mode) {
       margin: { l: 0, r: 0, b: 0, t: 0, pad: 0 },
       scene: {
         bgcolor: PLOT,
-        domain: { x: [0.04, 0.96], y: [0.02, 0.98] },
-        xaxis: { ...AXIS, title: x.title, range: x.range },
-        yaxis: { ...AXIS, title: y.title, range: y.range },
-        zaxis: { ...AXIS, title: z.title },
-        camera: { eye: { x: 1.5, y: 1.5, z: 0.85 } },
+        domain: { x: [0.02, 0.98], y: [0, 1] },
+        xaxis: axisSpec(x, true),
+        yaxis: axisSpec(y, true),
+        zaxis: axisSpec(z, true),
+        camera: {
+          eye: { x: 1.62, y: 1.62, z: 0.72 },
+          center: { x: 0, y: 0, z: -0.12 },
+        },
         aspectmode: 'cube',
       },
     };
@@ -126,9 +144,9 @@ function buildLayout(dataset, mode) {
 
   return {
     ...base,
-    margin: { l: 70, r: 190, b: 70, t: 30, pad: 4 },
-    xaxis: { ...AXIS, title: x.title, range: x.range },
-    yaxis: { ...AXIS, title: y.title, range: y.range },
+    margin: { l: 92, r: 34, b: 76, t: 28, pad: 4 },
+    xaxis: axisSpec(x, false),
+    yaxis: axisSpec(y, false),
     hovermode: 'closest',
   };
 }
@@ -140,40 +158,30 @@ const CONFIG = {
   modeBarButtonsToRemove: ['sendDataToCloud', 'toggleSpikelines'],
 };
 
-export default function RelValPlot({ dataset, mode }) {
+export default function RelValPlot({ dataset, mode, hidden }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-
     loadCsv(dataset.file)
-      .then((data) => {
-        if (!cancelled) setRows(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .then((data) => { if (!cancelled) setRows(data); })
+      .catch((err) => { if (!cancelled) setError(err); });
+    return () => { cancelled = true; };
   }, [dataset.file]);
 
   const traces = useMemo(
-    () => (rows ? buildTraces(rows, dataset, mode) : []),
-    [rows, dataset, mode]
+    () => (rows ? buildTraces(rows, dataset, mode, hidden || EMPTY) : []),
+    [rows, dataset, mode, hidden]
   );
 
   const layout = useMemo(() => buildLayout(dataset, mode), [dataset, mode]);
 
   if (error) {
-    return <div className="plot-status">Could not load {dataset.label} dataset.</div>;
+    return <div className="plot-status">Could not load the {dataset.label} panel.</div>;
   }
-
-  // gate on data so the dark canvas never flashes white while the CSV loads
   if (!rows) {
-    return <div className="plot-status">Loading {dataset.label} panel…</div>;
+    return <div className="plot-status">Loading {dataset.label}…</div>;
   }
 
   return (

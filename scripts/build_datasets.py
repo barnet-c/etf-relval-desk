@@ -1,15 +1,22 @@
 """
-Build the two relative-value datasets that power the ETF desk.
+Build the relative-value datasets for the gold ETF desk.
 
-Pulls daily OHLCV for the six ETFs (plus their benchmark asset) from the public
-Yahoo Finance chart endpoint, then derives:
+Universe: the 38 gold ETFs listed by etf.com/topics/gold from GLD through NUGY
+(see scripts/gold_roster.py). They span physically backed trusts, miner equity,
+leveraged and inverse products, and option-income funds -- so every axis here is
+chosen to stay meaningful across all six structures.
 
-  1. etf_crre_arb.csv       creation / redemption arbitrage panel
-  2. etf_liquidity_arb.csv  liquidity arbitrage panel
+Axes are in REAL UNITS, not z-scores. The cohort runs from a $154bn trust to a
+$6m ETN and from -3x to +3x leverage; standardising that away would hide the
+only differences that matter. Where a span crosses orders of magnitude the plot
+uses a log axis instead.
 
-Standard library only -- no third party dependencies.
+    etf_cost.csv       cost of ownership   round-trip cost (bps) vs holding drag (bps/yr)
+    etf_liquidity.csv  liquidity           average daily value ($mm) vs spread (bps)
+    etf_exposure.csv   exposure quality    beta to gold vs tracking error (% ann)
+    etf_latest.csv     one row per fund, latest session
 
-Usage:  python scripts/build_datasets.py
+Standard library only.  Usage:  python scripts/build_datasets.py
 """
 
 import csv
@@ -17,34 +24,45 @@ import json
 import math
 import os
 import ssl
+import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
-# --------------------------------------------------------------------------
-# universe
-# --------------------------------------------------------------------------
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gold_roster import GOLD_ROSTER, FAMILIES, SOURCE  # noqa: E402
 
-ETFS = {
-    "IBIT": {"name": "iShares Bitcoin Trust ETF",          "sponsor": "BlackRock",       "asset": "BTC",  "fee": 0.25},
-    "FBTC": {"name": "Fidelity Wise Origin Bitcoin Fund",  "sponsor": "Fidelity",        "asset": "BTC",  "fee": 0.25},
-    "GBTC": {"name": "Grayscale Bitcoin Trust ETF",        "sponsor": "Grayscale",       "asset": "BTC",  "fee": 1.50},
-    "ARKB": {"name": "ARK 21Shares Bitcoin ETF",           "sponsor": "ARK / 21Shares",  "asset": "BTC",  "fee": 0.21},
-    "BITB": {"name": "Bitwise Bitcoin ETF",                "sponsor": "Bitwise",         "asset": "BTC",  "fee": 0.20},
-    "IAU":  {"name": "iShares Gold Trust",                 "sponsor": "BlackRock",       "asset": "GOLD", "fee": 0.25},
-}
-
-BENCHMARKS = {"BTC": "BTC-USD", "GOLD": "GC=F"}
+BENCHMARKS = ["GC=F", "GDX"]
 
 RANGE = "2y"
 INTERVAL = "1d"
 
-BETA_WINDOW = 60      # rolling window for the fair-value beta
-TE_WINDOW = 20        # rolling window for tracking-error vol
-DISLOCATION_LAG = 5   # cumulative residual horizon for the arb signal
-ILLIQ_WINDOW = 21     # rolling window for the Amihud measure
-WARMUP = 20           # sessions dropped so every rolling window is fully populated
+BETA_WINDOW = 60      # rolling window for beta to the benchmark
+TE_WINDOW = 60        # rolling window for tracking-error vol
+ILLIQ_WINDOW = 21     # rolling window for spread / turnover
+DRAG_WINDOW = 126     # ~6 months, the window realised holding drag is fitted on
+WARMUP = 130          # sessions dropped so every rolling window is populated
+MIN_BARS = WARMUP + 40  # a fund needs this much history to be plottable
+
+# Round-trip cost = cross the spread twice, plus the price impact of the trade.
+# Impact is scaled off the fund's own Amihud measure for a nominal clip size.
+CLIP_USD_MM = 1.0       # the notional the impact estimate is quoted for
+IMPACT_CAP_BPS = 3000.0 # a guard against pathological days, not a working limit
+
+
+def logmod(x):
+    """
+    Log-modulus transform: sign(x) * log10(1 + |x|).
+
+    Holding drag runs from about -130 bps/yr on a physical trust to +17,000 on a
+    -3x ETN, and it takes both signs, so neither a linear nor a log axis can
+    show the cohort at once. This keeps the sign, compresses the decay tail, and
+    the plot labels its ticks back in real bps/yr.
+    """
+    if x != x:
+        return None
+    return math.copysign(math.log10(1.0 + abs(x)), x)
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "public", "plotted_datasets")
@@ -92,7 +110,7 @@ def fetch_series(symbol, attempts=4):
 
 
 # --------------------------------------------------------------------------
-# small statistics helpers
+# statistics
 # --------------------------------------------------------------------------
 
 def mean(xs):
@@ -106,48 +124,24 @@ def stdev(xs):
     return math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1))
 
 
-def zscore(xs):
-    m, s = mean(xs), stdev(xs)
-    if s == 0:
-        return [0.0 for _ in xs]
-    return [(x - m) / s for x in xs]
-
-
-def quartile_bucket(value, cuts):
-    """Map a value onto 1..4 using three precomputed cut points."""
-    for i, cut in enumerate(cuts):
-        if value <= cut:
-            return i + 1
-    return 4
-
-
-def quartile_cuts(xs):
-    s = sorted(xs)
-    if not s:
-        return [0, 0, 0]
-    return [s[int(len(s) * q)] if int(len(s) * q) < len(s) else s[-1]
-            for q in (0.25, 0.50, 0.75)]
-
-
-def rolling_beta(asset_rets, bench_rets, window):
-    """Rolling OLS beta of asset on benchmark; falls back to 1.0 while warming up."""
-    betas = []
-    for i in range(len(asset_rets)):
+def rolling_beta(a_rets, b_rets, window):
+    """Rolling OLS beta of asset on benchmark."""
+    out = []
+    for i in range(len(a_rets)):
         lo = max(0, i - window + 1)
-        a = asset_rets[lo:i + 1]
-        b = bench_rets[lo:i + 1]
+        a, b = a_rets[lo:i + 1], b_rets[lo:i + 1]
         if len(a) < 10:
-            betas.append(1.0)
+            out.append(float("nan"))
             continue
         mb = mean(b)
         var = sum((x - mb) ** 2 for x in b)
         if var == 0:
-            betas.append(1.0)
+            out.append(float("nan"))
             continue
         ma = mean(a)
         cov = sum((a[j] - ma) * (b[j] - mb) for j in range(len(a)))
-        betas.append(cov / var)
-    return betas
+        out.append(cov / var)
+    return out
 
 
 def corwin_schultz(highs, lows):
@@ -175,40 +169,46 @@ def corwin_schultz(highs, lows):
 # --------------------------------------------------------------------------
 
 def build_panel():
+    print(f"universe: {len(GOLD_ROSTER)} funds  ({SOURCE})")
+
     print("downloading benchmarks ...")
     bench = {}
-    for asset, symbol in BENCHMARKS.items():
-        bench[asset] = fetch_series(symbol)
-        print(f"  {asset:<4} {symbol:<9} {len(bench[asset])} bars")
+    for symbol in BENCHMARKS:
+        bench[symbol] = fetch_series(symbol)
+        print(f"  {symbol:<6} {len(bench[symbol])} bars")
 
-    print("downloading ETFs ...")
-    series = {}
-    for ticker in ETFS:
-        series[ticker] = fetch_series(ticker)
-        print(f"  {ticker:<4} {len(series[ticker])} bars")
+    print("downloading funds ...")
+    series, dropped = {}, []
+    for ticker in GOLD_ROSTER:
+        try:
+            rows = fetch_series(ticker)
+        except RuntimeError:
+            dropped.append((ticker, "no data"))
+            continue
+        if len(rows) < MIN_BARS:
+            dropped.append((ticker, f"{len(rows)} bars"))
+            continue
+        series[ticker] = rows
+    print(f"  {len(series)} funds with usable history")
+    for tk, why in dropped:
+        print(f"  dropped {tk:<6} ({why}, needs {MIN_BARS})")
 
-    # common trading calendar across every ETF
-    common = None
-    for rows in series.values():
-        days = set(rows)
-        common = days if common is None else (common & days)
-    calendar = sorted(common)
-    print(f"common calendar: {len(calendar)} sessions "
-          f"({calendar[0]} -> {calendar[-1]})")
-
+    # Each fund is measured on ITS OWN history rather than a cohort-wide common
+    # calendar: the newest fund here has 192 sessions, and intersecting on it
+    # would throw away 60% of GLD's history for no analytical gain.
     panel = {}
-    for ticker, meta in ETFS.items():
-        rows = series[ticker]
-        bench_rows = bench[meta["asset"]]
+    for ticker, rows in series.items():
+        name, issuer, aum, er, family, bsym = GOLD_ROSTER[ticker]
+        bench_rows = bench[bsym]
+        gold_rows = bench["GC=F"]
 
-        # forward-fill the benchmark onto the ETF calendar
-        bench_close, last = [], None
-        for day in calendar:
-            if day in bench_rows:
-                last = bench_rows[day]["close"]
-            bench_close.append(last)
-        first_valid = next((c for c in bench_close if c is not None), 1.0)
-        bench_close = [c if c is not None else first_valid for c in bench_close]
+        calendar = sorted(set(rows) & set(bench_rows) & set(gold_rows))
+        if len(calendar) < MIN_BARS:
+            print(f"  dropped {ticker:<6} ({len(calendar)} overlapping sessions)")
+            continue
+
+        bclose = [bench_rows[d]["close"] for d in calendar]
+        gclose = [gold_rows[d]["close"] for d in calendar]
 
         close = [rows[d]["close"] for d in calendar]
         high = [rows[d]["high"] for d in calendar]
@@ -216,130 +216,224 @@ def build_panel():
         vol = [rows[d]["volume"] for d in calendar]
 
         rets = [0.0] + [math.log(close[i] / close[i - 1]) for i in range(1, len(close))]
-        brets = [0.0] + [math.log(bench_close[i] / bench_close[i - 1])
-                         for i in range(1, len(bench_close))]
+        brets = [0.0] + [math.log(bclose[i] / bclose[i - 1]) for i in range(1, len(bclose))]
+        grets = [0.0] + [math.log(gclose[i] / gclose[i - 1]) for i in range(1, len(gclose))]
 
-        betas = rolling_beta(rets, brets, BETA_WINDOW)
-        resid = [rets[i] - betas[i] * brets[i] for i in range(len(rets))]
+        # beta to GOLD -- universal across structures, and it validates the
+        # product: a 3x gold ETN should print near 3, an inverse near -1
+        gold_beta = rolling_beta(rets, grets, BETA_WINDOW)
+        # beta to the fund's OWN family benchmark -- used for tracking quality
+        fam_beta = rolling_beta(rets, brets, BETA_WINDOW)
 
-        # --- creation / redemption arbitrage -----------------------------
-        # tracking error vol -> the risk an AP warehouses on the basket
+        resid = []
+        for i in range(len(rets)):
+            b = fam_beta[i]
+            resid.append(0.0 if b != b else rets[i] - b * brets[i])
+
+        # tracking error: annualised vol of the residual, in percent
         te = []
         for i in range(len(resid)):
             lo = max(0, i - TE_WINDOW + 1)
             te.append(stdev(resid[lo:i + 1]) * math.sqrt(252) * 100.0)
 
-        # cumulative residual -> how far the fund has drifted from fair value
-        disloc = []
+        # realised holding drag: the residual's own trend, annualised, in bps/yr.
+        # This is what the fund actually cost the holder over the window --
+        # fees, roll, decay and all -- rather than the stated expense ratio.
+        drag = []
         for i in range(len(resid)):
-            lo = max(0, i - DISLOCATION_LAG + 1)
-            disloc.append(sum(resid[lo:i + 1]) * 10000.0)
+            lo = max(0, i - DRAG_WINDOW + 1)
+            seg = resid[lo:i + 1]
+            drag.append(-mean(seg) * 252 * 10000.0 if seg else 0.0)
 
-        # --- liquidity arbitrage -----------------------------------------
-        # the daily Corwin-Schultz estimate is clamped at zero, which piles a
-        # lot of sessions onto an artificial floor -- average it over the same
-        # window as the Amihud measure to recover a usable "typical" spread
-        spread_raw = corwin_schultz(high, low)
+        # spread, 21d average of the daily high/low estimator
+        sp_raw = corwin_schultz(high, low)
         spread = []
-        for i in range(len(spread_raw)):
+        for i in range(len(sp_raw)):
             lo = max(0, i - ILLIQ_WINDOW + 1)
-            spread.append(mean(spread_raw[lo:i + 1]))
+            spread.append(mean(sp_raw[lo:i + 1]))
 
         dollar_vol = [close[i] * vol[i] for i in range(len(close))]
-
-        illiq_raw = []
-        for i in range(len(rets)):
-            dv = dollar_vol[i]
-            illiq_raw.append(abs(rets[i]) / (dv / 1e6) if dv > 0 else 0.0)
-
-        illiq = []
-        for i in range(len(illiq_raw)):
-            lo = max(0, i - ILLIQ_WINDOW + 1)
-            window = [x for x in illiq_raw[lo:i + 1] if x > 0]
-            illiq.append(math.log10(mean(window)) if window else -6.0)
 
         adv = []
         for i in range(len(dollar_vol)):
             lo = max(0, i - ILLIQ_WINDOW + 1)
             adv.append(mean(dollar_vol[lo:i + 1]) / 1e6)
 
+        illiq_raw = []
+        for i in range(len(rets)):
+            dv = dollar_vol[i]
+            illiq_raw.append(abs(rets[i]) / (dv / 1e6) if dv > 0 else 0.0)
+        # Amihud is a ratio with turnover in the denominator, so a single
+        # near-zero-volume session sends the mean to infinity. The thinnest
+        # funds here have days like that, which pinned five of them against the
+        # impact cap. Median over the window is the robust standard choice.
+        illiq = []
+        for i in range(len(illiq_raw)):
+            lo = max(0, i - ILLIQ_WINDOW + 1)
+            w = sorted(x for x in illiq_raw[lo:i + 1] if x > 0)
+            illiq.append(w[len(w) // 2] if w else 0.0)
+
+        # round trip = cross the spread twice + impact of a CLIP_USD_MM clip
+        roundtrip = []
+        for i in range(len(close)):
+            impact = illiq[i] * CLIP_USD_MM * 10000.0
+            roundtrip.append(spread[i] + min(impact, IMPACT_CAP_BPS))
+
+        vol_ann = []
+        for i in range(len(rets)):
+            lo = max(0, i - TE_WINDOW + 1)
+            vol_ann.append(stdev(rets[lo:i + 1]) * math.sqrt(252) * 100.0)
+
         panel[ticker] = {
+            "meta": (name, issuer, aum, er, family, bsym),
             "date": calendar, "close": close, "volume": vol,
-            "te": te, "disloc": disloc, "beta": betas,
-            "spread": spread, "illiq": illiq, "adv": adv,
+            "gold_beta": gold_beta, "fam_beta": fam_beta,
+            "te": te, "drag": drag, "spread": spread, "adv": adv,
+            "illiq": illiq, "roundtrip": roundtrip, "vol": vol_ann,
         }
 
-    return calendar, panel
+    return panel
 
 
-def write_datasets(calendar, panel):
+def _clean(v, lo=None, hi=None):
+    """NaN-safe rounding guard so no NaN reaches the CSV."""
+    if v != v or v in (float("inf"), float("-inf")):
+        return None
+    if lo is not None:
+        v = max(v, lo)
+    if hi is not None:
+        v = min(v, hi)
+    return v
+
+
+def write_datasets(panel):
     os.makedirs(OUT_DIR, exist_ok=True)
-    keep = range(WARMUP, len(calendar))
 
-    # ---------------- creation / redemption arbitrage --------------------
-    all_te = [panel[t]["te"][i] for t in panel for i in keep]
-    all_dis = [panel[t]["disloc"][i] for t in panel for i in keep]
-    te_mu, te_sd = mean(all_te), stdev(all_te) or 1.0
-    dis_mu, dis_sd = mean(all_dis), stdev(all_dis) or 1.0
+    # each fund contributes its own post-warm-up sessions
+    keeps = {tk: list(range(WARMUP, len(d["date"]))) for tk, d in panel.items()}
+    total = sum(len(v) for v in keeps.values())
+    spans = [(d["date"][WARMUP], d["date"][-1]) for d in panel.values()]
+    print(f"\n{len(panel)} funds, {total} fund-sessions "
+          f"({min(s[0] for s in spans)} -> {max(s[1] for s in spans)})")
 
-    risk_z = [(v - te_mu) / te_sd for v in all_te]
-    yield_z = [(v - dis_mu) / dis_sd for v in all_dis]
-    risk_cuts, yield_cuts = quartile_cuts(risk_z), quartile_cuts(yield_z)
+    base_cols = ["", "Ticker", "Fund", "Issuer", "Family", "FamilyLabel",
+                 "Benchmark", "Date", "Price", "AUM", "ExpenseRatio"]
 
-    path = os.path.join(OUT_DIR, "etf_crre_arb.csv")
+    def base_row(idx, tk, d, i):
+        name, issuer, aum, er, family, bsym = d["meta"]
+        return [idx, tk, name, issuer, family, FAMILIES[family], bsym,
+                d["date"][i], round(d["close"][i], 4),
+                round(aum / 1e6, 2), er]
+
+    # ---------------- cost of ownership ----------------------------------
+    path = os.path.join(OUT_DIR, "etf_cost.csv")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["", "Ticker", "Risk", "Yield", "Price", "Date", "Fund",
-                    "Sponsor", "Asset", "Fee", "TrackingError", "Dislocation",
-                    "Beta", "Volume", "Classifications"])
+        w.writerow(base_cols + ["RoundTripBps", "HoldingDragBpsYr", "DragLM",
+                                "SpreadBps", "ADVmm"])
         idx = 0
-        for ticker, meta in ETFS.items():
-            d = panel[ticker]
-            for i in keep:
-                risk = (d["te"][i] - te_mu) / te_sd
-                yld = (d["disloc"][i] - dis_mu) / dis_sd
-                cls = (f"{quartile_bucket(risk, risk_cuts)}-"
-                       f"{quartile_bucket(yld, yield_cuts)}")
-                w.writerow([idx, ticker, round(risk, 6), round(yld, 6),
-                            round(d["close"][i], 4), d["date"][i], meta["name"],
-                            meta["sponsor"], meta["asset"], meta["fee"],
-                            round(d["te"][i], 4), round(d["disloc"][i], 3),
-                            round(d["beta"][i], 4), int(d["volume"][i]), cls])
+        for tk, d in panel.items():
+            for i in keeps[tk]:
+                rt = _clean(d["roundtrip"][i], 0.05)
+                dr = _clean(d["drag"][i], -20000, 20000)
+                if rt is None or dr is None:
+                    continue
+                w.writerow(base_row(idx, tk, d, i) +
+                           [round(rt, 3), round(dr, 1), round(logmod(dr), 4),
+                            round(d["spread"][i], 3), round(d["adv"][i], 3)])
                 idx += 1
     print(f"wrote {path}  ({idx} rows)")
 
-    # ---------------- liquidity arbitrage --------------------------------
-    all_illiq = [panel[t]["illiq"][i] for t in panel for i in keep]
-    all_spread = [panel[t]["spread"][i] for t in panel for i in keep]
-    il_mu, il_sd = mean(all_illiq), stdev(all_illiq) or 1.0
-    sp_mu, sp_sd = mean(all_spread), stdev(all_spread) or 1.0
-
-    risk_cuts = quartile_cuts([(v - il_mu) / il_sd for v in all_illiq])
-    yield_cuts = quartile_cuts([(v - sp_mu) / sp_sd for v in all_spread])
-
-    path = os.path.join(OUT_DIR, "etf_liquidity_arb.csv")
+    # ---------------- liquidity ------------------------------------------
+    path = os.path.join(OUT_DIR, "etf_liquidity.csv")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["", "Ticker", "Risk", "Yield", "Price", "Date", "Fund",
-                    "Sponsor", "Asset", "Fee", "SpreadBps", "Illiquidity",
-                    "ADV", "Volume", "Classifications"])
+        w.writerow(base_cols + ["ADVmm", "SpreadBps", "RoundTripBps", "VolAnn"])
         idx = 0
-        for ticker, meta in ETFS.items():
-            d = panel[ticker]
-            for i in keep:
-                risk = (d["illiq"][i] - il_mu) / il_sd
-                yld = (d["spread"][i] - sp_mu) / sp_sd
-                cls = (f"{quartile_bucket(risk, risk_cuts)}-"
-                       f"{quartile_bucket(yld, yield_cuts)}")
-                w.writerow([idx, ticker, round(risk, 6), round(yld, 6),
-                            round(d["close"][i], 4), d["date"][i], meta["name"],
-                            meta["sponsor"], meta["asset"], meta["fee"],
-                            round(d["spread"][i], 3), round(d["illiq"][i], 4),
-                            round(d["adv"][i], 2), int(d["volume"][i]), cls])
+        for tk, d in panel.items():
+            for i in keeps[tk]:
+                adv = _clean(d["adv"][i], 0.01)
+                sp = _clean(d["spread"][i], 0.05)
+                if adv is None or sp is None:
+                    continue
+                w.writerow(base_row(idx, tk, d, i) +
+                           [round(adv, 3), round(sp, 3),
+                            round(d["roundtrip"][i], 3), round(d["vol"][i], 3)])
                 idx += 1
     print(f"wrote {path}  ({idx} rows)")
+
+    # ---------------- exposure quality -----------------------------------
+    path = os.path.join(OUT_DIR, "etf_exposure.csv")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(base_cols + ["GoldBeta", "VolAnn", "TrackingErrorPct",
+                                "RoundTripBps", "ADVmm"])
+        idx = 0
+        for tk, d in panel.items():
+            for i in keeps[tk]:
+                gb = _clean(d["gold_beta"][i], -6, 6)
+                te = _clean(d["te"][i], 0.0)
+                if gb is None or te is None:
+                    continue
+                w.writerow(base_row(idx, tk, d, i) +
+                           [round(gb, 4), round(d["vol"][i], 3), round(te, 3),
+                            round(d["roundtrip"][i], 3), round(d["adv"][i], 3)])
+                idx += 1
+    print(f"wrote {path}  ({idx} rows)")
+
+    # ---------------- latest snapshot ------------------------------------
+    path = os.path.join(OUT_DIR, "etf_latest.csv")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Ticker", "Fund", "Issuer", "Family", "FamilyLabel",
+                    "Benchmark", "Date", "Price", "AUM", "ExpenseRatio",
+                    "RoundTripBps", "HoldingDragBpsYr", "SpreadBps",
+                    "ADVmm", "GoldBeta", "TrackingErrorPct", "VolAnn"])
+        for tk, d in panel.items():
+            name, issuer, aum, er, family, bsym = d["meta"]
+            i = len(d["date"]) - 1
+            gb = _clean(d["gold_beta"][i], -6, 6)
+            w.writerow([tk, name, issuer, family, FAMILIES[family], bsym,
+                        d["date"][i], round(d["close"][i], 4),
+                        round(aum / 1e6, 2), er,
+                        round(d["roundtrip"][i], 3),
+                        round(_clean(d["drag"][i], -20000, 20000) or 0, 1),
+                        round(d["spread"][i], 3), round(d["adv"][i], 3),
+                        round(gb, 4) if gb is not None else "",
+                        round(d["te"][i], 3), round(d["vol"][i], 3)])
+    print(f"wrote {path}")
+
+    # ---------------- ranges, so the plot axes can be sized honestly ------
+    def span(key):
+        vals = sorted(panel[t][key][i] for t in panel for i in keeps[t]
+                      if _clean(panel[t][key][i]) is not None)
+        n = len(vals)
+        p = lambda q: vals[min(n - 1, int(n * q))]
+        return (f"min {vals[0]:9.2f}  p1 {p(0.01):9.2f}  p50 {p(0.5):9.2f}  "
+                f"p99 {p(0.99):9.2f}  max {vals[-1]:9.2f}")
+
+    print("\nreal-unit ranges (size the plot axes from these):")
+    for k, lbl in (("roundtrip", "round trip bps"), ("drag", "drag bps/yr"),
+                   ("adv", "ADV $mm"), ("spread", "spread bps"),
+                   ("gold_beta", "beta to gold"), ("te", "tracking err %"),
+                   ("vol", "vol % ann")):
+        print(f"  {lbl:<16}{span(k)}")
+
+    # per-family medians -- the sanity check that the structures came out right
+    print("\nlatest median by family:")
+    fams = {}
+    for tk, d in panel.items():
+        i = len(d["date"]) - 1
+        fams.setdefault(d["meta"][4], []).append(
+            (d["gold_beta"][i], d["roundtrip"][i], d["drag"][i], d["adv"][i]))
+    for fam, vals in sorted(fams.items()):
+        med = lambda j: sorted(v[j] for v in vals
+                               if v[j] == v[j])[len(vals) // 2]
+        print(f"  {FAMILIES[fam]:<18} n={len(vals):<3} "
+              f"beta {med(0):6.2f}  rt {med(1):7.1f}bps  "
+              f"drag {med(2):9.0f}bps/yr  adv ${med(3):9.1f}mm")
 
 
 if __name__ == "__main__":
-    cal, pnl = build_panel()
-    write_datasets(cal, pnl)
+    pnl = build_panel()
+    write_datasets(pnl)

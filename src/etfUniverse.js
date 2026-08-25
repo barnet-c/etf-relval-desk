@@ -1,76 +1,73 @@
 /**
- * The six funds on the desk, in display order.
+ * The gold ETF cohort.
  *
- * `color` values are pulled from the desk palette so each fund keeps a stable
- * identity across all four views.
+ * The universe is the 38 gold ETFs listed by etf.com/topics/gold from GLD
+ * through NUGY. Per-fund metadata (name, issuer, AUM, expense ratio, family)
+ * travels in the CSVs themselves, so the only thing declared here is how each
+ * structural family is drawn.
+ *
+ * Points are coloured by FAMILY, not by ticker. With 37 funds on the desk a
+ * per-ticker palette would need 37 distinguishable hues, which is not possible
+ * and not useful; what a reader actually needs to see is which of the six
+ * product structures a point belongs to.
+ *
+ * The palette is deliberately neutral -- warm and cool greys, champagne, sand,
+ * bronze, slate, dusty blue and lavender. No green and no red anywhere, so
+ * nothing on the chart reads as an implied "good" or "bad" verdict.
  */
-export const ETF_UNIVERSE = {
-  IBIT: {
-    name: 'iShares Bitcoin Trust ETF',
-    sponsor: 'BlackRock',
-    asset: 'BTC',
-    fee: 0.25,
-    color: '#2EE6A8',
+
+export const FAMILY_ORDER = [
+  'physical',
+  'miners',
+  'lev_gold',
+  'lev_miners',
+  'inverse',
+  'income',
+];
+
+export const FAMILIES = {
+  physical: {
+    label: 'Physical gold',
+    color: '#E3D2A8', // champagne
+    blurb: 'Trusts holding allocated bullion. The cheapest way to hold gold.',
   },
-  FBTC: {
-    name: 'Fidelity Wise Origin Bitcoin Fund',
-    sponsor: 'Fidelity',
-    asset: 'BTC',
-    fee: 0.25,
-    color: '#7C9CFF',
+  miners: {
+    label: 'Gold miners',
+    color: '#93A9C6', // dusty blue
+    blurb: 'Equity in gold mining companies. Levered to gold by operation.',
   },
-  GBTC: {
-    name: 'Grayscale Bitcoin Trust ETF',
-    sponsor: 'Grayscale',
-    asset: 'BTC',
-    fee: 1.5,
-    color: '#FFC24B',
+  lev_gold: {
+    label: 'Leveraged gold',
+    color: '#C7A57E', // bronze
+    blurb: 'Daily-reset 2x and 3x gold. Compounding decay is structural.',
   },
-  ARKB: {
-    name: 'ARK 21Shares Bitcoin ETF',
-    sponsor: 'ARK / 21Shares',
-    asset: 'BTC',
-    fee: 0.21,
-    color: '#FF5D73',
+  lev_miners: {
+    label: 'Leveraged miners',
+    color: '#AB9CBD', // dusty lavender
+    blurb: 'Daily-reset leverage on the miner index. The widest exposure here.',
   },
-  BITB: {
-    name: 'Bitwise Bitcoin ETF',
-    sponsor: 'Bitwise',
-    asset: 'BTC',
-    fee: 0.2,
-    color: '#98DCDF',
+  inverse: {
+    label: 'Inverse',
+    color: '#8C919C', // slate
+    blurb: 'Short gold or short miners, daily reset.',
   },
-  IAU: {
-    name: 'iShares Gold Trust',
-    sponsor: 'BlackRock',
-    asset: 'GOLD',
-    fee: 0.25,
-    color: '#D2DFA7',
+  income: {
+    label: 'Option income',
+    color: '#C4B7A4', // sand
+    blurb: 'Covered-call and yield strategies written over gold or miners.',
   },
 };
 
-export const ETF_ORDER = ['GBTC', 'BITB', 'FBTC', 'IAU', 'IBIT', 'ARKB'];
+/** Anything the CSV labels with an unknown family still gets drawn. */
+export const FALLBACK_COLOR = '#79808C';
 
-/**
- * Quartile classification buckets carried through from the source dataset.
- * Retained so a point can still be shaded by risk/yield quartile instead of
- * by fund when that view is useful.
- */
-export const CLASSIFICATION_COLORS = {
-  '1-1': '#8F828C',
-  '1-2': '#646464',
-  '1-3': '#ACDCDF',
-  '1-4': '#90C3C9',
-  '2-1': '#AEC47D',
-  '2-2': '#929292',
-  '2-3': '#9CC6B0',
-  '2-4': '#78B8D1',
-  '3-1': '#78B8D1',
-  '3-2': '#273D58',
-  '3-3': '#D2DFA7',
-  '3-4': '#C5C6A9',
-  '4-1': '#928FB1',
-  '4-2': '#98DCDF',
-  '4-3': '#AFC47E',
-  '4-4': '#A6C095',
-};
+export function familyColor(key) {
+  return (FAMILIES[key] && FAMILIES[key].color) || FALLBACK_COLOR;
+}
+
+export function familyLabel(key) {
+  return (FAMILIES[key] && FAMILIES[key].label) || key;
+}
+
+export const UNIVERSE_SOURCE =
+  'etf.com/topics/gold — 38 funds, GLD through NUGY';
