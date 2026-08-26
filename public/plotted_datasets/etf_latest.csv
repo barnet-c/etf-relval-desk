@@ -1,38 +1,38 @@
-Ticker,Fund,Issuer,Family,FamilyLabel,Benchmark,Date,Price,AUM,ExpenseRatio,RoundTripBps,HoldingDragBpsYr,SpreadBps,ADVmm,GoldBeta,TrackingErrorPct,VolAnn
-GLD,SPDR Gold Shares,World Gold Council,physical,Physical gold,GC=F,2026-08-25,428.07,154580.0,0.4,15.731,233.2,15.706,4226.993,0.8644,14.367,26.626
-IAU,iShares Gold Trust,BlackRock,physical,Physical gold,GC=F,2026-08-25,87.76,67770.0,0.25,15.338,224.8,15.012,478.217,0.8614,14.182,26.458
-GLDM,SPDR Gold MiniShares,World Gold Council,physical,Physical gold,GC=F,2026-08-25,92.35,32030.0,0.1,16.273,231.2,15.935,417.267,0.8675,14.154,26.587
-GDX,VanEck Gold Miners ETF,VanEck,miners,Gold miners,GDX,2026-08-25,105.52,32030.0,0.51,45.295,0,45.161,2263.501,1.7258,0.0,53.672
-GDXJ,VanEck Junior Gold Miners ETF,VanEck,miners,Gold miners,GDX,2026-08-25,135.9,9860.0,0.52,63.607,775.9,63.137,623.58,1.8948,7.9,60.089
-IAUM,iShares Gold Trust Micro,BlackRock,physical,Physical gold,GC=F,2026-08-25,46.51,8020.0,0.09,15.53,228.1,14.501,123.599,0.8605,14.144,26.425
-SGOL,abrdn Physical Gold Shares,abrdn,physical,Physical gold,GC=F,2026-08-25,44.43,7750.0,0.17,15.87,238.8,14.486,86.536,0.8625,14.212,26.505
-OUNZ,VanEck Merk Gold ETF,VanEck,physical,Physical gold,GC=F,2026-08-25,44.84,2880.0,0.25,18.434,256.4,13.833,24.717,0.8646,14.249,26.573
-AAAU,Goldman Sachs Physical Gold ETF,Goldman Sachs,physical,Physical gold,GC=F,2026-08-25,46.0,2860.0,0.18,16.536,230.2,14.016,53.795,0.8614,14.096,26.416
-RING,iShares MSCI Global Gold Miners,BlackRock,miners,Gold miners,GDX,2026-08-25,93.17,2580.0,0.39,39.395,-603.9,36.247,68.628,1.737,5.602,53.656
-GDXU,MicroSectors Gold Miners 3X Lev ETN,BMO,lev_miners,Leveraged miners,GDX,2026-08-25,199.03,1670.0,0.95,155.142,11155.7,151.89,227.47,5.2606,11.026,163.464
-BAR,GraniteShares Gold Shares,GraniteShares,physical,Physical gold,GC=F,2026-08-25,45.96,1470.0,0.17,27.352,196.1,15.208,8.84,0.8583,14.106,26.35
-NUGT,Direxion Daily Gold Miners Bull 2X,Direxion,lev_miners,Leveraged miners,GDX,2026-08-25,218.64,1460.0,1.13,89.806,3260.2,85.686,115.967,3.4128,3.82,105.781
-UGL,ProShares Ultra Gold,ProShares,lev_gold,Leveraged gold,GC=F,2026-08-25,58.3,958.75,0.95,32.027,1674.1,30.374,143.317,1.7381,28.267,53.231
-SGDM,Sprott Gold Miners ETF,Sprott,miners,Gold miners,GDX,2026-08-25,88.25,738.19,0.46,113.474,-337.0,30.552,3.372,1.7524,7.934,52.986
-JNUG,Direxion Daily Jr Gold Miners Bull 2X,Direxion,lev_miners,Leveraged miners,GDX,2026-08-25,218.85,655.36,1.03,129.393,5373.8,118.552,46.524,3.7641,16.808,119.011
-IAUI,NEOS Gold High Income ETF,NEOS,income,Option income,GC=F,2026-08-25,52.99,588.57,0.79,16.336,1898.7,12.391,12.928,0.688,13.507,22.302
-FGDL,Franklin Responsibly Sourced Gold,Franklin Templeton,physical,Physical gold,GC=F,2026-08-25,62.0589,469.55,0.15,130.78,277.9,15.438,1.026,0.884,14.572,27.229
-SGDJ,Sprott Junior Gold Miners ETF,Sprott,miners,Gold miners,GDX,2026-08-25,103.9,369.9,0.5,121.582,239.6,47.891,4.153,1.8104,15.414,58.426
-GDXY,YieldMax Gold Miners Option Income,YieldMax,income,Option income,GDX,2026-08-25,12.22,316.85,1.0,69.702,6297.0,45.581,8.381,1.4027,7.744,42.719
-DGP,DB Gold Double Long ETN,Deutsche Bank,lev_gold,Leveraged gold,GC=F,2026-08-25,172.61,237.73,0.75,73.999,2112.2,64.646,23.134,1.7154,34.028,55.958
-GLDI,UBS ETRACS Gold Covered Call ETN,UBS,income,Option income,GC=F,2026-08-25,152.08,176.85,0.65,25.723,3000.3,21.587,13.295,0.6827,14.308,22.803
-KGLD,Kurv Gold Enhanced Income ETF,Kurv,income,Option income,GC=F,2026-08-25,29.95,149.06,1.0,44.129,2104.0,20.311,4.281,0.9001,13.824,27.168
-GOEX,Global X Gold Explorers ETF,Mirae / Global X,miners,Gold miners,GDX,2026-08-25,97.6591,144.99,0.65,373.093,288.1,43.205,1.263,1.9062,11.831,58.498
-SHNY,MicroSectors Gold 3X Leveraged ETN,BMO,lev_gold,Leveraged gold,GC=F,2026-08-25,11.78,114.13,0.95,78.106,4704.5,45.016,11.118,2.5883,42.075,79.236
-DUST,Direxion Daily Gold Miners Bear 2X,Direxion,inverse,Inverse,GDX,2026-08-25,29.08,92.34,0.94,98.053,7025.0,88.112,50.82,-3.4762,9.251,109.083
-GDXW,Roundhill Gold Miners WeeklyPay,Roundhill,income,Option income,GDX,2026-08-25,49.9292,90.93,0.99,195.778,5998.7,47.549,1.987,2.1014,7.995,64.807
-GLL,ProShares UltraShort Gold,ProShares,inverse,Inverse,GC=F,2026-08-25,19.82,88.55,0.95,33.949,354.8,29.356,61.015,-1.7207,28.714,53.086
-GDXD,MicroSectors Gold Miners -3X ETN,BMO,inverse,Inverse,GDX,2026-08-25,14.3,77.47,0.95,167.195,15125.0,145.898,41.14,-5.3875,17.728,170.631
-YGLD,Simplify Gold Strategy ETF,Simplify,income,Option income,GC=F,2026-08-25,40.4539,43.57,0.53,482.022,2006.0,39.368,0.484,1.3449,23.689,42.252
-JDST,Direxion Daily Jr Gold Miners Bear 2X,Direxion,inverse,Inverse,GDX,2026-08-25,19.04,28.12,0.92,147.781,7319.4,114.473,18.317,-3.7783,16.9,120.732
-AUMI,Themes Gold Miners ETF,Themes,miners,Gold miners,GDX,2026-08-25,110.0053,27.92,0.35,1503.162,294.8,10.187,0.287,1.7998,9.223,55.185
-GLDW,Roundhill Gold WeeklyPay ETF,Roundhill,income,Option income,GC=F,2026-08-25,46.62,18.52,0.99,305.296,3659.4,12.084,0.418,1.0508,17.463,32.352
-DULL,MicroSectors Gold -3X Inverse ETN,BMO,inverse,Inverse,GC=F,2026-08-25,47.0331,13.1,0.95,1740.561,2646.5,17.343,0.254,-2.5703,43.627,79.678
-USG,USCF Gold Strategy Plus Income,USCF / Marygold,income,Option income,GC=F,2026-08-25,35.06,8.74,0.45,1459.76,1637.0,1.785,0.074,0.7894,14.14,24.923
-AUAU,Global X Gold Miners ETF,Mirae / Global X,miners,Gold miners,GDX,2026-08-25,45.3863,7.08,0.35,2845.708,-33.6,4.014,0.093,1.6725,6.131,51.131
-NUGY,GraniteShares YieldBOOST Gold Miners,GraniteShares,income,Option income,GDX,2026-08-25,13.17,6.47,1.07,390.16,8687.7,7.459,0.111,0.3692,11.607,16.663
+Ticker,Fund,Issuer,Family,FamilyLabel,Benchmark,Date,Price,AUM,ExpenseRatio,RoundTripBps,HoldingDragBpsYr,SpreadBps,ADVmm,GoldBeta,TrackingErrorPct,VolAnn,ExecCostBps,NetSpreadBps,GrossSpreadBps,HalfLifeDays
+GLD,SPDR Gold Shares,World Gold Council,physical,Physical gold,GC=F,2026-08-26,421.33,154580.0,0.4,15.731,49.8,15.706,4328.839,0.8772,14.661,26.669,23.433,88.74,112.18,1.18
+IAU,iShares Gold Trust,BlackRock,physical,Physical gold,GC=F,2026-08-26,86.37,67770.0,0.25,15.338,48.3,15.012,477.432,0.8736,14.492,26.498,23.387,94.8,118.19,1.27
+GLDM,SPDR Gold MiniShares,World Gold Council,physical,Physical gold,GC=F,2026-08-26,90.88,32030.0,0.1,16.264,53.6,15.935,437.982,0.8798,14.478,26.629,23.852,83.39,107.25,1.22
+GDX,VanEck Gold Miners ETF,VanEck,miners,Gold miners,GDX,2026-08-26,102.4791,32030.0,0.51,50.017,0,49.892,2324.382,1.7319,0.0,53.602,54.212,-49.96,4.25,3.34
+GDXJ,VanEck Junior Gold Miners ETF,VanEck,miners,Gold miners,GDX,2026-08-26,132.88,9860.0,0.52,66.888,592.6,66.5,631.688,1.9043,8.198,59.756,62.778,365.71,-428.49,17.29
+IAUM,iShares Gold Trust Micro,BlackRock,physical,Physical gold,GC=F,2026-08-26,45.78,8020.0,0.09,15.623,52.0,14.594,125.646,0.8732,14.425,26.46,23.881,90.47,114.35,1.27
+SGOL,abrdn Physical Gold Shares,abrdn,physical,Physical gold,GC=F,2026-08-26,43.75,7750.0,0.17,15.968,51.0,14.583,86.468,0.875,14.486,26.53,24.231,93.42,117.65,1.27
+OUNZ,VanEck Merk Gold ETF,VanEck,physical,Physical gold,GC=F,2026-08-26,44.14,2880.0,0.25,18.434,69.6,13.833,25.304,0.8773,14.527,26.603,27.072,82.8,109.88,1.2
+AAAU,Goldman Sachs Physical Gold ETF,Goldman Sachs,physical,Physical gold,GC=F,2026-08-26,45.285,2860.0,0.18,16.63,52.9,14.11,54.468,0.8745,14.369,26.453,25.13,85.72,110.85,1.28
+RING,iShares MSCI Global Gold Miners,BlackRock,miners,Gold miners,GDX,2026-08-26,90.35,2580.0,0.39,44.327,-623.4,40.966,65.303,1.7441,5.607,53.685,52.984,272.39,325.37,135.23
+GDXU,MicroSectors Gold Miners 3X Lev ETN,BMO,lev_miners,Leveraged miners,GDX,2026-08-26,183.8,1670.0,0.95,171.005,10911.6,167.754,234.618,5.2818,11.398,162.945,118.269,1022.49,-1140.76,13.63
+BAR,GraniteShares Gold Shares,GraniteShares,physical,Physical gold,GC=F,2026-08-26,45.22,1470.0,0.17,27.288,33.6,15.144,9.19,0.8713,14.419,26.407,35.271,88.93,124.2,1.3
+NUGT,Direxion Daily Gold Miners Bull 2X,Direxion,lev_miners,Leveraged miners,GDX,2026-08-26,205.89,1460.0,1.13,98.828,3245.1,94.707,120.32,3.4274,3.76,105.764,82.614,174.41,-257.02,8.78
+UGL,ProShares Ultra Gold,ProShares,lev_gold,Leveraged gold,GC=F,2026-08-26,56.48,958.75,0.95,32.052,1297.8,30.399,147.563,1.7627,28.87,53.292,33.907,104.18,138.09,1.35
+SGDM,Sprott Gold Miners ETF,Sprott,miners,Gold miners,GDX,2026-08-26,85.66,738.19,0.46,120.762,-286.5,37.84,3.439,1.755,7.935,52.947,130.982,112.49,243.48,2.64
+JNUG,Direxion Daily Jr Gold Miners Bull 2X,Direxion,lev_miners,Leveraged miners,GDX,2026-08-26,208.9,655.36,1.03,134.327,5015.3,124.389,47.489,3.7831,17.349,118.393,103.272,1007.66,-1110.93,10.98
+IAUI,NEOS Gold High Income ETF,NEOS,income,Option income,GC=F,2026-08-26,52.55,588.57,0.79,16.335,1747.4,12.39,12.935,0.7002,13.448,22.237,26.195,162.26,-188.45,0.73
+FGDL,Franklin Responsibly Sourced Gold,Franklin Templeton,physical,Physical gold,GC=F,2026-08-26,61.2699,469.55,0.15,127.428,74.6,15.438,1.084,0.8996,14.638,27.195,135.264,-21.43,113.83,1.21
+SGDJ,Sprott Junior Gold Miners ETF,Sprott,miners,Gold miners,GDX,2026-08-26,101.514,369.9,0.5,125.6,197.4,51.909,4.155,1.8363,15.405,58.446,128.786,162.05,-290.84,1.98
+GDXY,YieldMax Gold Miners Option Income,YieldMax,income,Option income,GDX,2026-08-26,11.955,316.85,1.0,69.911,6299.1,48.534,8.868,1.4128,7.68,42.692,75.784,282.81,-358.59,3.79
+DGP,DB Gold Double Long ETN,Deutsche Bank,lev_gold,Leveraged gold,GC=F,2026-08-26,168.5801,237.73,0.75,75.837,1736.0,68.992,24.677,1.7366,34.319,55.839,58.396,85.72,144.11,1.71
+GLDI,UBS ETRACS Gold Covered Call ETN,UBS,income,Option income,GC=F,2026-08-26,151.485,176.85,0.65,24.487,2808.0,20.477,13.576,0.6955,14.254,22.745,30.303,174.22,-204.52,3.64
+KGLD,Kurv Gold Enhanced Income ETF,Kurv,income,Option income,GC=F,2026-08-26,29.41,149.06,1.0,44.127,1949.9,20.31,4.315,0.9121,14.315,27.267,50.027,-49.4,0.63,1.85
+GOEX,Global X Gold Explorers ETF,Mirae / Global X,miners,Gold miners,GDX,2026-08-26,96.03,144.99,0.65,321.893,70.2,46.621,1.369,1.9247,12.196,58.222,327.723,-151.37,-176.36,6.55
+SHNY,MicroSectors Gold 3X Leveraged ETN,BMO,lev_gold,Leveraged gold,GC=F,2026-08-26,11.22,114.13,0.95,78.106,4114.2,45.016,11.359,2.6259,43.041,79.385,72.653,-68.35,-4.3,1.45
+DUST,Direxion Daily Gold Miners Bear 2X,Direxion,inverse,Inverse,GDX,2026-08-26,30.7775,92.34,0.94,106.775,7025.9,96.835,52.562,-3.4965,9.242,109.064,89.498,716.16,-805.66,11.42
+GDXW,Roundhill Gold Miners WeeklyPay,Roundhill,income,Option income,GDX,2026-08-26,48.1342,90.93,0.99,194.749,6082.5,57.546,2.08,2.1017,7.912,64.555,196.116,263.75,-459.87,1.06
+GLL,ProShares UltraShort Gold,ProShares,inverse,Inverse,GC=F,2026-08-26,20.465,88.55,0.95,33.806,668.3,29.214,62.082,-1.7459,29.354,53.194,36.254,250.46,-286.71,1.18
+GDXD,MicroSectors Gold Miners -3X ETN,BMO,inverse,Inverse,GDX,2026-08-26,15.515,77.47,0.95,174.838,15234.8,157.022,43.702,-5.4189,17.753,170.438,127.467,1269.79,-1397.26,8.14
+YGLD,Simplify Gold Strategy ETF,Simplify,income,Option income,GC=F,2026-08-26,38.61,43.57,0.53,479.932,2209.2,37.278,0.509,1.3651,25.61,43.18,477.348,-87.99,389.36,2.78
+JDST,Direxion Daily Jr Gold Miners Bear 2X,Direxion,inverse,Inverse,GDX,2026-08-26,19.89,28.12,0.92,149.629,7917.4,120.88,18.569,-3.8072,17.35,120.283,120.33,-3.95,-116.38,10.7
+AUMI,Themes Gold Miners ETF,Themes,miners,Gold miners,GDX,2026-08-26,108.44,27.92,0.35,910.291,115.4,10.187,0.294,1.8018,9.417,54.491,934.338,-875.23,59.11,6.88
+GLDW,Roundhill Gold WeeklyPay ETF,Roundhill,income,Option income,GC=F,2026-08-26,45.83,18.52,0.99,301.318,3406.6,12.084,0.449,1.0638,17.641,32.253,311.33,-205.64,-105.69,1.08
+DULL,MicroSectors Gold -3X Inverse ETN,BMO,inverse,Inverse,GC=F,2026-08-26,49.29,13.1,0.95,1739.508,3079.9,16.291,0.257,-2.609,44.435,79.788,1748.418,-1108.73,-639.69,1.22
+USG,USCF Gold Strategy Plus Income,USCF / Marygold,income,Option income,GC=F,2026-08-26,35.0003,8.74,0.45,1277.088,1300.7,1.785,0.074,0.8069,13.907,24.814,1292.25,-1051.75,-240.5,1.26
+AUAU,Global X Gold Miners ETF,Mirae / Global X,miners,Gold miners,GDX,2026-08-26,44.395,7.08,0.35,2845.573,-119.2,3.879,0.096,1.6886,6.133,51.088,2872.774,-2664.38,208.4,17.12
+NUGY,GraniteShares YieldBOOST Gold Miners,GraniteShares,income,Option income,GDX,2026-08-26,13.14,6.47,1.07,352.425,8650.7,8.369,0.115,0.3803,11.381,16.663,378.381,414.6,-792.99,3.9
