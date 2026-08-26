@@ -7,19 +7,21 @@ import { FAMILIES, FAMILY_ORDER } from './etfUniverse';
 
 function DeskMark() {
   return (
-    <svg className="logo" viewBox="0 0 40 40" role="img" aria-label="Relative value desk">
-      <defs>
-        <linearGradient id="rvd-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#E3D2A8" />
-          <stop offset="100%" stopColor="#93A9C6" />
-        </linearGradient>
-      </defs>
-      <circle cx="20" cy="20" r="18" fill="none" stroke="url(#rvd-g)" strokeWidth="1.6" opacity="0.5" />
-      <path d="M8 27 L16 17 L23 22 L32 10" fill="none" stroke="url(#rvd-g)" strokeWidth="2.4"
-        strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="16" cy="17" r="2.4" fill="#E3D2A8" />
-      <circle cx="23" cy="22" r="2.4" fill="#93A9C6" />
-    </svg>
+    <a
+      className="brand-link"
+      href="https://www.openexa.com/"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="OpenEXA — opens openexa.com in a new tab"
+    >
+      <img
+        className="logo"
+        src={`${process.env.PUBLIC_URL}/openexa-logo.webp`}
+        alt="OpenEXA"
+        width="352"
+        height="133"
+      />
+    </a>
   );
 }
 

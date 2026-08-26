@@ -5,8 +5,10 @@ import * as d3 from 'd3';
 import EtfData from './EtfData';
 import { FAMILIES, FAMILY_ORDER, familyColor } from './etfUniverse';
 
-const PAPER = '#08090C';
-const PLOT = '#0C0E13';
+// The chart surface is the OpenEXA desk blue-grey, not the page black, so the
+// plot reads as a panel sitting on the page rather than a hole cut into it.
+const PAPER = '#141721';
+const PLOT = '#141721';
 
 const AXIS = {
   color: '#E4E1DA',
@@ -21,11 +23,11 @@ const AXIS = {
 // The WebGL 3D renderer ignores alpha on grid, line and pane colours, so each
 // one has to be an opaque tone mixed against the plot background by hand.
 const AXIS_3D = {
-  gridcolor: 'rgb(42,44,50)',
-  zerolinecolor: 'rgb(74,76,84)',
-  linecolor: 'rgb(48,50,57)',
+  gridcolor: 'rgb(52,57,72)',
+  zerolinecolor: 'rgb(88,95,116)',
+  linecolor: 'rgb(58,64,81)',
   showbackground: true,
-  backgroundcolor: 'rgb(14,16,21)',
+  backgroundcolor: 'rgb(26,30,42)',
   showspikes: false,
   tickfont: { size: 10, color: '#8E8A83' },
   title: { font: { size: 11.5, color: '#C6C1B8' } },
@@ -114,7 +116,8 @@ function buildLayout(dataset, mode) {
       color: '#8E8A83',
     },
     hoverlabel: {
-      bgcolor: '#12141A',
+      // lifted off PLOT so the tooltip still reads as a separate surface
+      bgcolor: '#1C2030',
       bordercolor: 'rgba(216,196,154,0.45)',
       font: { color: '#E4E1DA', size: 12 },
       align: 'left',

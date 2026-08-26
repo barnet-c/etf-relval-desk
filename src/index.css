@@ -37,6 +37,11 @@
   --lavender: #ab9cbd;
   --slate: #8c919c;
   --sand: #c4b7a4;
+
+  /* the OpenEXA desk surface — the blue-grey the chart is drawn on, and the
+     mint that marks the interactive controls */
+  --plot-bg: #141721;
+  --mint: #2ee6a8;
 }
 
 * {
@@ -121,9 +126,26 @@ kbd {
   flex: none;
 }
 
+.brand-link {
+  display: flex;
+  align-items: center;
+  flex: none;
+  border-radius: var(--r-sm);
+  transition: opacity 130ms ease;
+}
+
+.brand-link:hover {
+  opacity: 0.78;
+}
+
+.brand-link:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 4px;
+}
+
 .logo {
-  height: 36px;
-  width: 36px;
+  height: 30px;
+  width: auto;
   flex: none;
   display: block;
 }
@@ -195,9 +217,9 @@ kbd {
 }
 
 .tab[aria-selected="true"] {
-  background: var(--accent-soft);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px rgba(216,196,154,0.28);
+  background: rgba(46, 230, 168, 0.14);
+  color: var(--mint);
+  box-shadow: inset 0 0 0 1px rgba(46, 230, 168, 0.34);
 }
 
 /* status chip */
@@ -238,9 +260,9 @@ kbd {
   height: 36px;
   padding: 0 38px 0 13px;
   border-radius: var(--r-md);
-  border: 1px solid var(--accent-line);
+  border: 1px solid rgba(46, 230, 168, 0.42);
   background-color: var(--card-solid);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23D8C49A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232EE6A8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   color: var(--ink);
@@ -253,13 +275,13 @@ kbd {
 }
 
 .model-select:hover {
-  border-color: rgba(216,196,154,0.55);
+  border-color: rgba(46, 230, 168, 0.62);
 }
 
 .model-select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(216,196,154,0.2);
+  border-color: var(--mint);
+  box-shadow: 0 0 0 3px rgba(46, 230, 168, 0.22);
 }
 
 .model-select option {
@@ -300,6 +322,7 @@ kbd {
 .plot-frame {
   width: 100%;
   height: 100%;
+  background: var(--plot-bg);
 }
 
 .plot-status {
@@ -310,7 +333,7 @@ kbd {
   color: var(--ink-3);
   font-size: 13px;
   letter-spacing: 0.02em;
-  background: var(--bg-lift);
+  background: var(--plot-bg);
 }
 
 /* ── fund strip under the header ────────────────────────────────── */
@@ -813,8 +836,8 @@ table.tbl td .swatch {
     gap: 10px;
   }
   .logo {
-    height: 28px;
-    width: 28px;
+    height: 24px;
+    width: auto;
   }
   .brand-sep,
   .brand-text i {
