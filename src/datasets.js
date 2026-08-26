@@ -50,6 +50,23 @@ const VOL_TICKS = {
   ticktext: ['10', '20', '50', '100', '200'],
 };
 
+// Net spread takes both signs and spans -3,000 to +2,200 bps, so it gets the
+// same log-modulus treatment as holding drag.
+const NET_TICKS = {
+  tickvals: [-3, -2, -1, 0, 1, 2, 3],
+  ticktext: [
+    `${MINUS}1,000`, `${MINUS}100`, `${MINUS}10`,
+    '0', '10', '100', '1,000',
+  ],
+};
+
+// Half-life runs from a tenth of a session to the 999-session clamp that stands
+// in for "this does not converge", so it needs a log axis of its own.
+const HL_TICKS = {
+  tickvals: [0.1, 1, 10, 100, 1000],
+  ticktext: ['0.1', '1', '10', '100', '1,000'],
+};
+
 const COMMON_HOVER = [
   { key: 'Fund', label: 'Fund' },
   { key: 'Issuer', label: 'Issuer' },
@@ -150,6 +167,76 @@ export const EXPOSURE = {
   ],
 };
 
+export const ARBITRAGE = {
+  id: 'arbitrage',
+  label: 'Creation Arbitrage',
+  file: F('etf_arbitrage.csv'),
+  note: 'Execution cost is both legs crossed once — half the ETF spread plus impact, half the basket spread, the creation fee and one night of financing. Net spread is what is left of the dislocation after paying it; above the zero line the arbitrage clears its own costs.',
+  axes: {
+    x: {
+      key: 'ExecCostBps',
+      title: 'Total execution cost  D₂  (bps)',
+      type: 'log',
+      // descending, so cost grows leftward across the panel
+      range: [3.55, 0.85],
+      ticks: BPS_TICKS,
+    },
+    y: {
+      key: 'NetLM',
+      title: 'Net arbitrage spread  (bps)',
+      range: [-3.6, 3.5],
+      ticks: NET_TICKS,
+      zeroline: true,
+    },
+    z: { key: 'ExecCostBps', title: 'Execution cost  (bps)' },
+  },
+  hover: [
+    ...COMMON_HOVER,
+    { key: 'NetSpreadBps', label: 'Net spread', suffix: ' bps' },
+    { key: 'ExecCostBps', label: 'Execution cost', suffix: ' bps' },
+    { key: 'GrossSpreadBps', label: 'Gross spread', suffix: ' bps' },
+    { key: 'HalfLifeDays', label: 'Convergence half-life', suffix: ' days' },
+    { key: 'ADVmm', label: 'Daily turnover', prefix: '$', suffix: 'mm' },
+  ],
+};
+
+export const ARB3D = {
+  id: 'arb3d',
+  label: 'Creation Arbitrage 3D',
+  file: F('etf_arbitrage.csv'),
+  note: 'The same two arbitrage axes with convergence speed added: how many sessions it historically takes for half the dislocation to close, fitted from the mean reversion of the spread. Near the floor and to the right is the good corner — cheap to put on and quick to come back.',
+  axes: {
+    x: {
+      key: 'ExecCostBps',
+      title: 'Execution cost  D₂  (bps, log)',
+      type: 'log',
+      // descending, so cost grows leftward, matching the 2D panel
+      range: [3.55, 0.85],
+      ticks: BPS_TICKS,
+    },
+    y: {
+      key: 'NetLM',
+      title: 'Net spread  (bps, log-modulus)',
+      range: [-3.6, 3.5],
+      ticks: NET_TICKS,
+    },
+    z: {
+      key: 'HalfLifeDays',
+      title: 'Convergence half-life  (sessions, log)',
+      type: 'log',
+      range: [-1.05, 3.02],
+      ticks: HL_TICKS,
+    },
+  },
+  hover: [
+    ...COMMON_HOVER,
+    { key: 'HalfLifeDays', label: 'Convergence half-life', suffix: ' days' },
+    { key: 'NetSpreadBps', label: 'Net spread', suffix: ' bps' },
+    { key: 'ExecCostBps', label: 'Execution cost', suffix: ' bps' },
+    { key: 'GrossSpreadBps', label: 'Gross spread', suffix: ' bps' },
+  ],
+};
+
 export const RV3D = {
   id: 'rv3d',
   label: 'Three-way 3D',
@@ -185,6 +272,8 @@ export const RV3D = {
 };
 
 export const VIEWS = [
+  { id: 'ARB', dataset: ARBITRAGE, mode: '2d', label: 'Creation Arbitrage' },
+  { id: 'ARB3D', dataset: ARB3D, mode: '3d', label: 'Creation Arbitrage 3D' },
   { id: 'COST', dataset: COST, mode: '2d', label: 'Cost of Ownership' },
   { id: 'LIQ', dataset: LIQUIDITY, mode: '2d', label: 'Liquidity' },
   { id: 'EXP', dataset: EXPOSURE, mode: '2d', label: 'Exposure' },

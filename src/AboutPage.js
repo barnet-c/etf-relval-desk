@@ -147,9 +147,270 @@ b_t = ln( bench_t / bench_(t-1) )      gold or the miner index`}
         />
       </section>
 
+      {/* ── arbitrage ─────────────────────────────────── */}
+      <section id="arbitrage">
+        <h2>Panel one</h2>
+        <h3>Creation arbitrage</h3>
+
+        <p>
+          Most of this desk asks what a fund costs <em>you</em>. This panel
+          asks a different question, from the other side of the screen: when
+          the traded price drifts away from what the fund actually holds,{' '}
+          <strong>is the gap big enough for anyone to bother closing
+          it?</strong>
+        </p>
+
+        <p>
+          That is the job of an authorised participant. If the ETF trades rich
+          it sells the ETF, buys the basket, and delivers it to the issuer for
+          new shares. If it trades cheap it does the reverse. The trade only
+          exists if the dislocation is wider than the cost of doing it &mdash;
+          and that cost is the horizontal axis here.
+        </p>
+
+        <h4>Step one &mdash; what the basket is worth</h4>
+
+        <p>
+          The textbook version prices the basket line by line, weight times
+          executable price, ask for a creation and bid for a redemption. This
+          desk has no basket file and no quotes, so the basket is proxied by the
+          fund&rsquo;s <strong>own benchmark</strong> &mdash; COMEX gold, or the
+          miner index for miner funds &mdash; rolled forward on the beta fitted
+          in panel five, and bled down by the fee the NAV accrues along
+          the way.
+        </p>
+
+        <Formula
+          tag="2"
+          name="Basket fair value"
+          unit="price"
+          code={`FV_t = P_(t−W) · exp(  Σ beta_s · b_s  −  (ER/252) · W  )
+                        s = t−W+1 .. t
+
+W = 21 sessions      b_s = benchmark log return
+beta_s = the fund's own 60-session beta to that benchmark`}
+          plain="Take the fund's price three weeks ago, push it forward by whatever gold did since — scaled by how much gold the fund actually gives you — then subtract the management fee it has quietly accrued. That is roughly what a share should be worth today."
+        >
+          Anchoring on the fund&rsquo;s own price rather than a published NAV is
+          what makes this computable from free data. It also means the measure
+          is a <em>relative</em> dislocation over the last 21 sessions, not an
+          absolute premium to NAV.
+        </Formula>
+
+        <Formula
+          tag="3"
+          name="Gross arbitrage spread"
+          unit="basis points"
+          code={`GrossSpread_t = ( P_ETF,t − FV_t ) / FV_t  × 10,000`}
+          plain="How far the market price has wandered from that fair value, in hundredths of a percent. Positive means the ETF is expensive relative to what it holds; negative means it is cheap."
+        />
+
+        <h4>The horizontal axis &mdash; what the trade costs</h4>
+
+        <p>
+          Every arbitrage crosses <strong>two</strong> markets, and the textbook
+          splits the cost accordingly. The ETF leg pays half a spread, plus the
+          impact of its own size, plus commission. The basket leg pays half a
+          spread and its own impact. On top of both sit two cash items: the
+          issuer&rsquo;s creation fee, and the cost of funding the position over
+          the settlement gap.
+        </p>
+
+        <Formula
+          tag="4"
+          name="Total execution cost  (D₂)"
+          unit="basis points"
+          code={`C_ETF    = Spread_ETF / 2   +  MI_ETF  +  Commission
+C_basket = Spread_bench / 2  +  MI_basket
+
+D2 = C_ETF  +  C_basket  +  CreationFee  +  Financing`}
+          plain="Add up every toll the round trip pays: half the gap between buy and sell on each of the two markets, the price you move by trading size, the broker's cut, the issuer's fee for printing new shares, and one night of interest."
+        >
+          Both spreads come from the same Corwin&ndash;Schultz estimator as
+          formula 7 in panel three &mdash; the fund&rsquo;s on the fund, the
+          benchmark&rsquo;s on the benchmark. <code>MI_ETF</code> is the Amihud
+          impact of formula 8 for a $1m clip. Note that this is a{' '}
+          <em>one-way</em> cost on each leg, unlike the round trip in panel
+          three, which crosses the same market twice.
+        </Formula>
+
+        <div className="note warn">
+          <p>
+            <strong>Four of these numbers are invented, not sourced.</strong>{' '}
+            Only the two spread terms and <code>MI_ETF</code> are measured from
+            price data. Commission (<strong>0.5 bps</strong>), financing (an
+            assumed <strong>4.3%</strong> annualised over <strong>T+1</strong>,
+            about 1.2 bps), the creation fee (<strong>1.0&ndash;3.0 bps</strong>{' '}
+            by structure) and basket impact (<strong>0.5 bps</strong> against
+            gold futures, <strong>1.5 bps</strong> against the miner basket) are
+            placeholder constants of roughly the right order of magnitude.{' '}
+            <strong>No prospectus, fee schedule or funding curve was
+            consulted for any of them.</strong> Basket impact in particular is
+            assumed rather than measured because Yahoo reports{' '}
+            <code>GC=F</code> volume in contracts and reports it unreliably, so
+            an Amihud measure on it would be noise. All five sit at the top of{' '}
+            <code>scripts/build_datasets.py</code>; replace them with real data
+            before quoting a number off this panel.
+          </p>
+        </div>
+
+        <h4>The vertical axis &mdash; what survives</h4>
+
+        <Formula
+          tag="5"
+          name="Net arbitrage spread"
+          unit="basis points"
+          code={`NetSpread_t = | GrossSpread_t |  −  D2_t`}
+          plain="The dislocation minus everything it costs to capture. Above zero, the trade pays for itself. Below zero, the price can stay 'wrong' all day and nobody has a reason to correct it."
+        >
+          The absolute value is deliberate: an AP creates when the ETF is rich
+          and redeems when it is cheap, so what has to clear the cost is the{' '}
+          <em>size</em> of the dislocation, not its direction. The signed gross
+          spread is in the tooltip if you want to know which way it pointed.
+        </Formula>
+
+        <div className="note warn">
+          <p>
+            <strong>Why that axis looks strange too.</strong> The horizontal
+            axis is <strong>logarithmic</strong> and{' '}
+            <strong>reversed</strong> &mdash; cost grows to the <em>left</em>,
+            and each labelled step that way is ten times the last. The practical
+            reading: <strong>the further right a point sits, the cheaper it is
+            to arbitrage</strong>. Execution cost is strictly positive, so the
+            axis never reaches zero.
+          </p>
+        </div>
+
+        <div className="note">
+          <p>
+            <strong>Reading the panel.</strong> The horizontal zero line is the
+            whole story: above it a dislocation is wide enough to pay for its
+            own correction, below it the price can stay &ldquo;wrong&rdquo; and
+            nobody has a reason to fix it. The{' '}
+            <strong>physical trusts</strong> sit furthest right &mdash; a
+            median D₂ of about <strong>26 bps</strong>, roughly a quarter of
+            what the miner and inverse structures pay &mdash; which is why
+            bullion ETFs track as tightly as they do. The interesting family is{' '}
+            <strong>gold miners</strong>: median execution cost around{' '}
+            <strong>95 bps</strong> against a median dislocation of only{' '}
+            <strong>101 bps</strong>, so the typical session leaves nothing on
+            the table and the net spread is negative <strong>58%</strong> of the
+            time &mdash; the only structure here where that is true.
+          </p>
+        </div>
+
+        <div className="note warn">
+          <p>
+            <strong>Do not read the level as free money.</strong> The median net
+            spread is positive for five of the six structures, which no real
+            market would leave alone. That is the fair-value proxy showing
+            through: formula 2 measures drift away from a 21-session
+            beta-implied path, and a fund can drift from that path for reasons
+            an AP cannot monetise &mdash; beta estimation error, a benchmark
+            that is not really its basket, genuine tracking slippage. A true
+            premium to NAV would be far smaller. Compare structures against each
+            other, and watch which side of the line they sit on; do not read the
+            height above zero as a P&amp;L.
+          </p>
+        </div>
+
+      </section>
+
+      {/* ── arbitrage 3d ─────────────────────────────────── */}
+      <section id="arbitrage-3d">
+        <h2>Panel two</h2>
+        <h3>Creation arbitrage in three dimensions</h3>
+
+        <p>
+          Panel one tells you whether a dislocation is <em>worth</em> closing.
+          It does not tell you how long your money is tied up while it closes,
+          and a trade that pays 40 bps in two days is not the same trade as one
+          that pays 40 bps in a month. This panel keeps both arbitrage axes
+          exactly as they were and adds that third question on the vertical:{' '}
+          <strong>once the position is on, how long does the gap historically
+          take to shut?</strong>
+        </p>
+
+        <h4>The third axis &mdash; how fast it closes</h4>
+
+        <p>
+          Take the same relative dislocation from formula 3 and ask whether it
+          mean-reverts. Regress today&rsquo;s <em>change</em> in the spread on
+          yesterday&rsquo;s <em>level</em>. A negative slope means a wide gap
+          tends to narrow, and the size of that slope says how quickly. Turn it
+          into a half-life &mdash; the number of sessions for any gap to shrink
+          by half &mdash; and it becomes a number you can compare across funds.
+        </p>
+
+        <Formula
+          tag="6"
+          name="Convergence half-life"
+          unit="sessions"
+          code={`S_t = ( P_ETF,t − FV_t ) / FV_t
+
+ΔS_t = alpha  +  beta · S_(t−1)  +  e_t      over 60 sessions
+
+  equivalently   S_t = c + (1 + beta) · S_(t−1) + e_t
+
+HalfLife = − ln(2) / ln(1 + beta)`}
+          plain="Fit a line to how much of yesterday's gap disappeared today, then work out how many days it takes for half of any gap to melt away. A day or two means the market is policing itself; three weeks means it is not."
+        >
+          Only a mean-reverting fit has a half-life, so this is left blank
+          unless <code>&minus;1 &lt; beta &lt; 0</code>. That holds for{' '}
+          <strong>99%</strong> of fund-sessions here; the remaining 1% leaves a
+          gap in the point cloud rather than a fabricated number. A fit that
+          reverts almost imperceptibly can throw an enormous half-life, so the
+          value is clamped at <strong>999 sessions</strong> &mdash; read
+          anything near the top of the axis as &ldquo;this does not converge on
+          any horizon you would trade,&rdquo; not as a measurement. It bites on
+          three rows out of twelve thousand.
+        </Formula>
+
+        <div className="note warn">
+          <p>
+            <strong>Daily bars are the wrong frequency for this, and that
+            matters.</strong> Create/redeem is an intraday trade; the textbook
+            fits this regression on 1- or 5-minute bars, where a half-life of
+            &ldquo;six periods&rdquo; means half an hour. Free daily closes are
+            the coarsest frequency that still says anything, so a half-life
+            under one session here should be read as <em>within a day</em> and
+            no finer. The cross-sectional ranking is the usable output; the
+            absolute number is not.
+          </p>
+        </div>
+
+        <div className="note">
+          <p>
+            <strong>Reading the panel.</strong> The good corner is{' '}
+            <strong>low and to the right</strong> &mdash; cheap to put on, and
+            quick to come back. The two axes agree more often than not, which is
+            the mechanism working: <strong>physical trusts</strong> are both the
+            cheapest to arbitrage and the fastest to converge, a median
+            half-life of <strong>1.3 sessions</strong> with{' '}
+            <strong>99%</strong> of sessions under five. The far corner belongs
+            to <strong>leveraged miners</strong> at a median of{' '}
+            <strong>8.9 sessions</strong>, with only <strong>20%</strong> under
+            five &mdash; expensive to correct <em>and</em> slow to correct, which
+            is exactly the combination that lets a price stay wrong. Gold miners
+            and inverse funds sit between the two at roughly{' '}
+            <strong>4.4&ndash;4.9 sessions</strong>.
+          </p>
+        </div>
+
+        <div className="note warn">
+          <p>
+            <strong>Drag to rotate.</strong> Three-dimensional scatter hides
+            points behind other points from any single angle, so no one camera
+            position tells the truth about this cloud. Spin it. The tooltip
+            carries the exact half-life, execution cost and both spreads for
+            whichever point you are actually looking at.
+          </p>
+        </div>
+      </section>
+
       {/* ── cost panel ─────────────────────────────────── */}
       <section id="cost">
-        <h2>Panel one</h2>
+        <h2>Panel three</h2>
         <h3>Cost of ownership</h3>
 
         <p>
@@ -171,7 +432,7 @@ b_t = ln( bench_t / bench_(t-1) )      gold or the miner index`}
         </p>
 
         <Formula
-          tag="2"
+          tag="7"
           name="Corwin&ndash;Schultz spread estimator"
           unit="basis points"
           code={`k = 3 \u2212 2\u221A2
@@ -195,7 +456,7 @@ Spread_t = 2 \u00B7 (e^alpha \u2212 1) / (1 + e^alpha)   \u00D7 10,000`}
         </p>
 
         <Formula
-          tag="3"
+          tag="8"
           name="Round-trip trading cost"
           unit="basis points"
           code={`illiq_t = | r_t |  /  ( close_t \u00B7 volume_t / 1,000,000 )
@@ -222,7 +483,7 @@ RoundTrip_t = Spread_t  +  ( median illiq over 21 sessions \u00D7 $1mm \u00D7 10
         </p>
 
         <Formula
-          tag="4"
+          tag="9"
           name="Realised holding drag"
           unit="basis points per year"
           code={`beta_t  = Cov(r, b) / Var(b)          over the last 60 sessions
@@ -259,7 +520,7 @@ Drag = \u2212 mean( resid over the last 126 sessions ) \u00D7 252 \u00D7 10,000`
 
       {/* ── liquidity ─────────────────────────────────── */}
       <section id="liquidity">
-        <h2>Panel two</h2>
+        <h2>Panel four</h2>
         <h3>Liquidity</h3>
 
         <p>
@@ -269,7 +530,7 @@ Drag = \u2212 mean( resid over the last 126 sessions ) \u00D7 252 \u00D7 10,000`
         </p>
 
         <Formula
-          tag="5"
+          tag="10"
           name="Average daily turnover"
           unit="US$ millions"
           code={`ADV = mean( close_t \u00D7 volume_t  over 21 sessions ) / 1,000,000`}
@@ -286,7 +547,7 @@ Drag = \u2212 mean( resid over the last 126 sessions ) \u00D7 252 \u00D7 10,000`
 
       {/* ── exposure ─────────────────────────────────── */}
       <section id="exposure">
-        <h2>Panel three</h2>
+        <h2>Panel five</h2>
         <h3>Exposure</h3>
 
         <p>
@@ -297,7 +558,7 @@ Drag = \u2212 mean( resid over the last 126 sessions ) \u00D7 252 \u00D7 10,000`
         </p>
 
         <Formula
-          tag="6"
+          tag="11"
           name="Beta to gold"
           unit="ratio, 60-session"
           code={`GoldBeta_t = Cov(r, gold) / Var(gold)
@@ -378,6 +639,29 @@ Drag = \u2212 mean( resid over the last 126 sessions ) \u00D7 252 \u00D7 10,000`
             <strong>Miner funds are benchmarked to miners.</strong> Tracking
             error for a miner fund is measured against the miner index, not gold
             &mdash; otherwise every one of them would look broken.
+          </li>
+          <li>
+            <strong>The arbitrage panel has no basket and no NAV.</strong> A
+            real desk prices the creation basket constituent by constituent off
+            executable quotes and compares it to the published NAV. Panel one
+            proxies the basket with a beta-scaled benchmark anchored on the
+            fund&rsquo;s own price, so it measures dislocation relative to the
+            last 21 sessions rather than a true premium to net asset value. It
+            reads directionally, not to the basis point.
+          </li>
+          <li>
+            <strong>Its cash legs are assumed.</strong> Commission, financing,
+            the creation fee and the basket&rsquo;s market impact are desk
+            constants, listed in panel one and set at the top of the build
+            script. On the thinnest funds they are a rounding error next to the
+            spread; on the physical trusts they are most of the cost.
+          </li>
+          <li>
+            <strong>Convergence is fitted on daily closes.</strong> Create and
+            redeem is an intraday trade and the half-life regression belongs on
+            minute bars. Daily data can rank funds from fast to slow, which is
+            what panel two is for; it cannot tell you that a gap closes in six
+            hours rather than twelve.
           </li>
           <li>
             <strong>It is not advice.</strong> This is a data visualisation built

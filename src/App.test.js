@@ -1,6 +1,6 @@
 import EtfData from './EtfData';
 import { FAMILIES, FAMILY_ORDER, familyColor, familyLabel } from './etfUniverse';
-import { VIEWS, COST, LIQUIDITY, EXPOSURE, RV3D } from './datasets';
+import { VIEWS, COST, LIQUIDITY, EXPOSURE, ARBITRAGE, ARB3D, RV3D } from './datasets';
 
 const rows = [
   { '': '0', Ticker: 'GLD', Family: 'physical', RoundTripBps: '16.3', DragLM: '2.35' },
@@ -8,7 +8,7 @@ const rows = [
   { '': '2', Ticker: 'NUGT', Family: 'lev_miners', RoundTripBps: '131', DragLM: '3.73' },
 ];
 
-const PANELS = [COST, LIQUIDITY, EXPOSURE, RV3D];
+const PANELS = [ARBITRAGE, ARB3D, COST, LIQUIDITY, EXPOSURE, RV3D];
 
 test('every structural family has a label, colour and description', () => {
   FAMILY_ORDER.forEach((key) => {
@@ -78,9 +78,11 @@ test('EtfData groups rows by family and filters by column value', () => {
   expect(data.get_col(['RoundTripBps'], true)).toEqual([16.3, 18.1, 131]);
 });
 
-test('four panels are wired across the three datasets', () => {
-  expect(VIEWS).toHaveLength(4);
+test('every panel in the toggle is wired, arbitrage first', () => {
+  expect(VIEWS).toHaveLength(6);
   expect(VIEWS.map((v) => v.label)).toEqual([
+    'Creation Arbitrage',
+    'Creation Arbitrage 3D',
     'Cost of Ownership',
     'Liquidity',
     'Exposure',
@@ -96,7 +98,7 @@ test('four panels are wired across the three datasets', () => {
 });
 
 test('axes are in real units, never z-scores', () => {
-  const REAL = /Bps|BpsYr|mm|Beta|Ann|Pct|DragLM/;
+  const REAL = /Bps|BpsYr|mm|Beta|Ann|Pct|LM|Days/;
   PANELS.forEach((p) => {
     Object.values(p.axes).forEach((a) => {
       expect(a.key).toMatch(REAL);
@@ -122,7 +124,10 @@ test('log axes give tickvals in data units, and enough land inside the range', (
   PANELS.forEach((p) => {
     Object.entries(p.axes).forEach(([which, a]) => {
       if (a.type !== 'log' || !a.range) return;
-      const [lo, hi] = a.range;
+      // an axis may be deliberately reversed, so the range is not always
+      // ascending -- compare against its extent, not its literal order
+      const lo = Math.min(...a.range);
+      const hi = Math.max(...a.range);
       a.ticks.tickvals.forEach((v) => {
         expect(v).toBeGreaterThan(0); // a log tick at 0 or below is nonsense
       });
@@ -146,14 +151,23 @@ test('the drag axis is log-modulus and its ticks span both signs', () => {
   expect(y.zeroline).toBe(true);
 });
 
-test('every plotted axis declares a finite range', () => {
+test('every plotted axis declares a finite, non-degenerate range', () => {
   PANELS.forEach((p) => {
     Object.values(p.axes).forEach((a) => {
       if (!a.range) return;
       const [lo, hi] = a.range;
       expect(Number.isFinite(lo)).toBe(true);
       expect(Number.isFinite(hi)).toBe(true);
-      expect(hi).toBeGreaterThan(lo);
+      expect(lo).not.toBe(hi);
     });
+  });
+});
+
+test('the arbitrage cost axis is reversed so cost grows leftward', () => {
+  [ARBITRAGE, ARB3D].forEach((p) => {
+    const x = p.axes.x;
+    expect(x.key).toBe('ExecCostBps');
+    expect(x.type).toBe('log');
+    expect(x.range[0]).toBeGreaterThan(x.range[1]);
   });
 });
