@@ -82,7 +82,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(58% 44% at 84% -10%, rgba(216,196,154,0.09), transparent 62%),
+    radial-gradient(58% 44% at 84% -10%, rgba(46, 230, 168, 0.08), transparent 62%),
     radial-gradient(48% 38% at -6% 2%, rgba(76, 154, 255, 0.075), transparent 62%);
 }
 
@@ -433,6 +433,14 @@ kbd {
    Methodology page
    ══════════════════════════════════════════════════════════════════ */
 .doc {
+  /* the desk marks its interactive accents in mint; the methodology page
+     follows the same theme rather than the warm champagne accent. Overriding
+     the accent tokens here recolours every kicker, heading, formula tag,
+     callout rule, link and plain-English block to green in one place. */
+  --accent: var(--mint);
+  --accent-soft: rgba(46, 230, 168, 0.14);
+  --accent-line: rgba(46, 230, 168, 0.34);
+
   max-width: 900px;
   margin: 0 auto;
   padding: 52px 26px 110px;
@@ -529,7 +537,7 @@ kbd {
 .doc a {
   color: var(--accent);
   text-decoration: none;
-  border-bottom: 1px solid rgba(216,196,154,0.3);
+  border-bottom: 1px solid rgba(46, 230, 168, 0.32);
 }
 
 .doc a:hover {
